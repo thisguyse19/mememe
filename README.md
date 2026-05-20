@@ -20,7 +20,7 @@ For a fork or renamed repository, update the `repo` segment in `vite.config.ts` 
 - **Long-press** the slim pill at the bottom (home-indicator style) to arm the hidden input.
 - **Keyboard:** press **Escape three times** quickly (when not already armed) as an alternate trigger.
 - Status and code entry sit in **glass pills**; on narrow viewports, **tap the dot pill** to focus the hidden field and open the keyboard.
-- Enter **`test`** for a placeholder destination with no URL. Enter **`poco`** to route to `https://thisguyse.github.io/poco` after the unlock animation. More codes live in `src/config/secrets.ts`.
+- Enter **`test`** for a placeholder destination with no URL. Enter **`poco`** to route to `https://thisguyse19.github.com/poco` after the unlock animation. More codes live in `src/config/secrets.ts`.
 
 ## Later
 

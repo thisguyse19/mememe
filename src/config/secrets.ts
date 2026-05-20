@@ -8,7 +8,7 @@ export type SecretDestination = {
 /** Four-letter codes → destination metadata. */
 export const SECRET_DESTINATIONS: Record<string, SecretDestination> = {
   test: { label: 'The Workshop' },
-  poco: { label: 'Poco', href: 'https://thisguyse.github.io/poco' },
+  poco: { label: 'Poco', href: 'https://thisguyse19.github.com/poco' },
 }
 
 export const CODE_LENGTH = 4
