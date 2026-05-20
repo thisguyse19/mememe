@@ -1,15 +1,32 @@
-import { AnimatePresence, motion } from 'framer-motion'
+import { motion } from 'framer-motion'
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { CODE_LENGTH, SECRET_DESTINATIONS } from '../config/secrets'
 
 const LONG_PRESS_MS = 620
 const MOVE_CANCEL_PX = 14
 
+function useIsMobileUi() {
+  const [isMobile, setIsMobile] = useState(false)
+
+  useEffect(() => {
+    const mq = window.matchMedia('(max-width: 767px)')
+    const apply = () => setIsMobile(mq.matches)
+    apply()
+    mq.addEventListener('change', apply)
+    return () => mq.removeEventListener('change', apply)
+  }, [])
+
+  return isMobile
+}
+
 export function SecretPortal() {
   const [armed, setArmed] = useState(false)
   const [buffer, setBuffer] = useState('')
   const [wrong, setWrong] = useState(false)
-  const [destination, setDestination] = useState<string | null>(null)
+  const [success, setSuccess] = useState<{ label: string; href?: string } | null>(null)
+  const [postNoHref, setPostNoHref] = useState(false)
+  const isMobile = useIsMobileUi()
+
   const pressTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const startCoords = useRef<{ x: number; y: number } | null>(null)
   const inputRef = useRef<HTMLInputElement>(null)
@@ -17,12 +34,21 @@ export function SecretPortal() {
   const escReset = useRef<ReturnType<typeof setTimeout> | null>(null)
   const bufferRef = useRef('')
   const wrongTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const unlockTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   useLayoutEffect(() => {
     bufferRef.current = buffer
   }, [buffer])
 
+  const clearUnlockTimer = useCallback(() => {
+    if (unlockTimerRef.current) {
+      clearTimeout(unlockTimerRef.current)
+      unlockTimerRef.current = null
+    }
+  }, [])
+
   const disarm = useCallback(() => {
+    clearUnlockTimer()
     if (wrongTimeoutRef.current) {
       clearTimeout(wrongTimeoutRef.current)
       wrongTimeoutRef.current = null
@@ -30,48 +56,74 @@ export function SecretPortal() {
     setArmed(false)
     setBuffer('')
     setWrong(false)
-  }, [])
+    setSuccess(null)
+    setPostNoHref(false)
+  }, [clearUnlockTimer])
 
-  const updateBuffer = useCallback((raw: string) => {
-    if (wrongTimeoutRef.current) {
-      clearTimeout(wrongTimeoutRef.current)
-      wrongTimeoutRef.current = null
+  const updateBuffer = useCallback(
+    (raw: string) => {
+      if (success) return
+      if (wrongTimeoutRef.current) {
+        clearTimeout(wrongTimeoutRef.current)
+        wrongTimeoutRef.current = null
+      }
+
+      const sanitized = raw.toLowerCase().replace(/[^a-z]/g, '').slice(0, CODE_LENGTH)
+      if (sanitized.length < CODE_LENGTH) {
+        setWrong(false)
+      }
+      setBuffer(sanitized)
+
+      if (sanitized.length !== CODE_LENGTH) return
+
+      const entry = SECRET_DESTINATIONS[sanitized]
+      if (entry) {
+        setSuccess({ label: entry.label, href: entry.href })
+        setPostNoHref(false)
+        return
+      }
+
+      setWrong(true)
+      wrongTimeoutRef.current = window.setTimeout(() => {
+        setWrong(false)
+        setBuffer('')
+        wrongTimeoutRef.current = null
+      }, 720)
+    },
+    [success],
+  )
+
+  useEffect(() => {
+    if (!success) return
+
+    clearUnlockTimer()
+    const href = success.href
+    unlockTimerRef.current = window.setTimeout(() => {
+      unlockTimerRef.current = null
+      if (href) {
+        window.location.assign(href)
+      } else {
+        setPostNoHref(true)
+      }
+    }, 1000)
+
+    return () => {
+      clearUnlockTimer()
     }
-
-    const sanitized = raw.toLowerCase().replace(/[^a-z]/g, '').slice(0, CODE_LENGTH)
-    if (sanitized.length < CODE_LENGTH) {
-      setWrong(false)
-    }
-    setBuffer(sanitized)
-
-    if (sanitized.length !== CODE_LENGTH) return
-
-    const label = SECRET_DESTINATIONS[sanitized]
-    if (label) {
-      setDestination(label)
-      return
-    }
-
-    setWrong(true)
-    wrongTimeoutRef.current = window.setTimeout(() => {
-      setWrong(false)
-      setBuffer('')
-      wrongTimeoutRef.current = null
-    }, 720)
-  }, [])
+  }, [success, clearUnlockTimer])
 
   useEffect(
     () => () => {
       if (wrongTimeoutRef.current) clearTimeout(wrongTimeoutRef.current)
+      clearUnlockTimer()
     },
-    [],
+    [clearUnlockTimer],
   )
 
   useEffect(() => {
-    if (!armed || destination) return
+    if (!armed) return
 
     const onKeyDown = (e: KeyboardEvent) => {
-      if (document.activeElement === inputRef.current) return
       if (e.metaKey || e.ctrlKey || e.altKey) return
 
       if (e.key === 'Escape') {
@@ -79,6 +131,10 @@ export function SecretPortal() {
         disarm()
         return
       }
+
+      if (success) return
+
+      if (document.activeElement === inputRef.current) return
 
       if (e.key === 'Backspace') {
         e.preventDefault()
@@ -94,11 +150,11 @@ export function SecretPortal() {
 
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
-  }, [armed, destination, disarm, updateBuffer])
+  }, [armed, success, disarm, updateBuffer])
 
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key !== 'Escape' || armed || destination) return
+      if (e.key !== 'Escape' || armed || success) return
       escStreak.current += 1
       if (escReset.current) clearTimeout(escReset.current)
       escReset.current = window.setTimeout(() => {
@@ -114,13 +170,13 @@ export function SecretPortal() {
       window.removeEventListener('keydown', onKeyDown)
       if (escReset.current) clearTimeout(escReset.current)
     }
-  }, [armed, destination])
+  }, [armed, success])
 
   useEffect(() => {
-    if (armed && !destination) {
+    if (armed && !success && !isMobile) {
       window.setTimeout(() => inputRef.current?.focus(), 50)
     }
-  }, [armed, destination])
+  }, [armed, success, isMobile])
 
   const clearPressTimer = () => {
     if (pressTimer.current) {
@@ -130,7 +186,7 @@ export function SecretPortal() {
   }
 
   const onPointerDown = (e: React.PointerEvent) => {
-    if (armed || destination) return
+    if (armed || success) return
     startCoords.current = { x: e.clientX, y: e.clientY }
     clearPressTimer()
     pressTimer.current = window.setTimeout(() => {
@@ -158,6 +214,10 @@ export function SecretPortal() {
     updateBuffer(e.target.value)
   }
 
+  const focusSecretInput = () => {
+    inputRef.current?.focus()
+  }
+
   const filled = buffer.length
 
   return (
@@ -170,14 +230,79 @@ export function SecretPortal() {
       />
 
       <div className="fixed bottom-6 left-0 right-0 z-30 flex flex-col items-center gap-3 px-4 pb-[env(safe-area-inset-bottom)]">
-        <p
-          className={`max-w-xs text-center text-[11px] leading-snug tracking-wide text-sky-100/55 transition-opacity duration-500 sm:text-xs ${
+        <button
+          type="button"
+          className={`glass-pill max-w-md rounded-2xl px-4 py-2.5 text-center text-[11px] leading-snug tracking-wide transition-opacity duration-500 sm:px-5 sm:text-xs ${
             armed ? 'opacity-100' : 'pointer-events-none opacity-0'
-          }`}
+          } ${armed ? 'cursor-pointer text-sky-50/90 hover:bg-white/[0.12]' : ''}`}
           aria-live="polite"
+          onClick={() => {
+            if (armed) disarm()
+          }}
         >
-          Soft channel open — type four letters, or press Escape to leave.
-        </p>
+          {!success && isMobile && 'Tap or click here to dismiss.'}
+          {!success && !isMobile && 'Press Escape to dismiss.'}
+          {success && (
+            <>
+              <span className="inline">
+                Bringing you to {success.label}
+                {!postNoHref && (
+                  <motion.span
+                    className="inline-block w-5 text-left"
+                    aria-hidden="true"
+                    animate={{ opacity: [0.35, 1, 0.35] }}
+                    transition={{ duration: 1.1, repeat: Infinity }}
+                  >
+                    …
+                  </motion.span>
+                )}
+              </span>
+              {!success.href && postNoHref && (
+                <span className="mt-2 block text-[10px] font-normal tracking-normal text-white/50 sm:text-[11px]">
+                  This destination is not wired to a URL yet.
+                </span>
+              )}
+            </>
+          )}
+        </button>
+
+        <button
+          type="button"
+          className={`glass-pill relative overflow-hidden rounded-full px-5 py-3 transition-opacity duration-500 ${
+            armed ? 'opacity-100' : 'pointer-events-none opacity-0'
+          } ${wrong ? 'ring-1 ring-rose-300/45' : ''} ${success ? '' : 'active:scale-[0.99]'}`}
+          aria-label={
+            isMobile ? 'Tap to type your four-letter code' : 'Code entry indicator — type on your keyboard'
+          }
+          onClick={() => {
+            if (!armed || success) return
+            if (isMobile) focusSecretInput()
+          }}
+        >
+          {success && (
+            <motion.div
+              key={success.label + (success.href ?? '')}
+              className="pointer-events-none absolute inset-0 origin-left rounded-full bg-gradient-to-r from-sky-400/45 via-indigo-400/35 to-violet-400/30"
+              initial={{ scaleX: 0 }}
+              animate={{ scaleX: 1 }}
+              transition={{ duration: 1, ease: [0.22, 1, 0.36, 1] }}
+              style={{ transformOrigin: 'left center' }}
+            />
+          )}
+          <div
+            className={`relative z-10 flex items-center justify-center gap-2.5 ${wrong ? 'translate-x-0.5' : ''}`}
+            aria-hidden="true"
+          >
+            {Array.from({ length: CODE_LENGTH }).map((_, i) => (
+              <span
+                key={i}
+                className={`h-2 w-2 rounded-full transition-all duration-300 ${
+                  wrong ? 'bg-rose-300/95' : i < filled ? 'bg-sky-100/95 scale-110' : 'bg-white/35'
+                }`}
+              />
+            ))}
+          </div>
+        </button>
 
         <button
           type="button"
@@ -198,22 +323,6 @@ export function SecretPortal() {
           />
         </button>
 
-        <div
-          className={`flex gap-2 transition-opacity duration-500 ${
-            armed ? 'opacity-100' : 'pointer-events-none opacity-0'
-          } ${wrong ? 'translate-x-0.5' : ''}`}
-          aria-hidden="true"
-        >
-          {Array.from({ length: CODE_LENGTH }).map((_, i) => (
-            <span
-              key={i}
-              className={`h-1.5 w-1.5 rounded-full transition-all duration-300 ${
-                wrong ? 'bg-rose-300/90' : i < filled ? 'bg-sky-200/90 scale-110' : 'bg-white/25'
-              }`}
-            />
-          ))}
-        </div>
-
         {armed && (
           <label className="sr-only" htmlFor="secret-portal-input">
             Hidden passphrase field
@@ -230,51 +339,17 @@ export function SecretPortal() {
           maxLength={CODE_LENGTH}
           value={buffer}
           onChange={onInputChange}
+          onKeyDown={(e) => {
+            if (e.key === 'Escape') {
+              e.preventDefault()
+              disarm()
+            }
+          }}
           className="sr-only"
           tabIndex={armed ? 0 : -1}
           aria-hidden={!armed}
         />
       </div>
-
-      <AnimatePresence>
-        {destination && (
-          <motion.div
-            className="fixed inset-0 z-40 flex flex-col items-center justify-center bg-black/55 px-6 text-center backdrop-blur-2xl"
-            role="status"
-            aria-live="assertive"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.45 }}
-          >
-            <motion.p
-              className="text-lg font-medium tracking-tight text-white sm:text-2xl"
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.05, duration: 0.5 }}
-            >
-              Bringing you to {destination}
-              <motion.span
-                className="inline-block w-6 text-left"
-                aria-hidden="true"
-                animate={{ opacity: [0.25, 1, 0.25] }}
-                transition={{ duration: 1.2, repeat: Infinity }}
-              >
-                …
-              </motion.span>
-            </motion.p>
-            <motion.p
-              className="mt-4 max-w-md text-sm text-white/50"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ delay: 0.25, duration: 0.5 }}
-            >
-              The destination link is not connected yet — this is a gentle placeholder while the
-              path is finished.
-            </motion.p>
-          </motion.div>
-        )}
-      </AnimatePresence>
     </>
   )
 }
