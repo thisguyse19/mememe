@@ -52,7 +52,7 @@ const WHISPERS = [
   'bamboozled',
   'non-euclidean',
   'it blinks',
-  'cheek pressure critical',
+  'matter fountain online',
   'NVIDIA GeForce Poo',
 ]
 
@@ -168,49 +168,54 @@ function drawTurd(ctx: CanvasRenderingContext2D, t: Turd) {
   ctx.restore()
 }
 
-function drawButt(
+function drawVoidPortal(
   ctx: CanvasRenderingContext2D,
   cx: number,
   cy: number,
-  squeeze: number,
+  pulse: number,
   time: number,
 ) {
-  const wobble = Math.sin(time * 4.2) * 3
-  const spread = 1 - squeeze * 0.22
-
   ctx.save()
-  ctx.translate(cx, cy + wobble)
+  ctx.translate(cx, cy)
 
-  const cheekR = 46
-  const grad = ctx.createRadialGradient(0, 0, 8, 0, 0, cheekR)
-  grad.addColorStop(0, '#ffc9b5')
-  grad.addColorStop(0.7, '#e8a090')
-  grad.addColorStop(1, '#c97868')
+  const wobble = Math.sin(time * 3.1) * 2
 
-  ctx.fillStyle = grad
+  // ceiling mount / industrial chute
+  ctx.fillStyle = '#1c1917'
+  ctx.fillRect(-70, -36 + wobble, 140, 28)
+  ctx.fillStyle = '#44403c'
+  ctx.fillRect(-58, -10 + wobble, 116, 8)
+
+  // void hole — abstract, no anatomy
+  const holeGrad = ctx.createRadialGradient(0, 18 + wobble, 2, 0, 18 + wobble, 38 + pulse * 10)
+  holeGrad.addColorStop(0, '#050403')
+  holeGrad.addColorStop(0.45, '#1a0f08')
+  holeGrad.addColorStop(0.75, `rgba(120, 60, 20, ${0.35 + pulse * 0.35})`)
+  holeGrad.addColorStop(1, 'rgba(132, 204, 22, 0)')
+
+  ctx.fillStyle = holeGrad
   ctx.beginPath()
-  ctx.arc(-cheekR * 0.55 * spread, 0, cheekR, 0, Math.PI * 2)
-  ctx.arc(cheekR * 0.55 * spread, 0, cheekR, 0, Math.PI * 2)
+  ctx.ellipse(0, 18 + wobble, 34 + pulse * 8, 16 + pulse * 6, 0, 0, Math.PI * 2)
   ctx.fill()
 
-  ctx.fillStyle = '#3d1510'
-  ctx.beginPath()
-  ctx.ellipse(0, cheekR * 0.08, 8 + squeeze * 6, 14 + squeeze * 10, 0, 0, Math.PI * 2)
-  ctx.fill()
-
-  if (squeeze > 0.55) {
-    ctx.fillStyle = `rgba(90, 45, 15, ${0.25 + squeeze * 0.5})`
+  // inner swirl
+  ctx.strokeStyle = `rgba(163, 230, 53, ${0.15 + pulse * 0.35})`
+  ctx.lineWidth = 2
+  for (let i = 0; i < 3; i++) {
     ctx.beginPath()
-    ctx.ellipse(0, cheekR * 0.35 + squeeze * 18, 6 + squeeze * 4, 10 + squeeze * 14, 0, 0, Math.PI * 2)
-    ctx.fill()
+    const r = 12 + i * 8 + pulse * 6
+    ctx.ellipse(0, 18 + wobble, r, r * 0.45, time * 1.8 + i, 0, Math.PI * 2)
+    ctx.stroke()
   }
 
-  ctx.strokeStyle = 'rgba(60, 20, 15, 0.4)'
-  ctx.lineWidth = 2
-  ctx.beginPath()
-  ctx.moveTo(0, -cheekR * 0.15)
-  ctx.quadraticCurveTo(3, cheekR * 0.35, 0, cheekR * 0.55)
-  ctx.stroke()
+  // drip glow when emitting
+  if (pulse > 0.6) {
+    ctx.fillStyle = `rgba(180, 83, 9, ${(pulse - 0.6) * 0.5})`
+    ctx.beginPath()
+    ctx.moveTo(-6, 28 + wobble)
+    ctx.quadraticCurveTo(0, 42 + pulse * 20 + wobble, 6, 28 + wobble)
+    ctx.fill()
+  }
 
   ctx.restore()
 }
@@ -229,7 +234,7 @@ export function PooSimulation() {
     const stinks: StinkWave[] = []
     const whispers: Whisper[] = []
     let pressure = 0
-    let squeeze = 0
+    let pulse = 0
     let shake = 0
     let time = 0
     let w = 0
@@ -262,7 +267,7 @@ export function PooSimulation() {
     }
 
     const emitterX = () => w * 0.5
-    const emitterY = () => h * 0.17
+    const emitterY = () => h * 0.14 + 36
 
     const tick = (now: number) => {
       const dt = Math.min(0.033, (now - last) / 1000)
@@ -270,14 +275,14 @@ export function PooSimulation() {
       time += dt
 
       pressure = Math.min(1, pressure + dt * 0.22)
-      squeeze = 0.35 + Math.sin(time * 2.8) * 0.15 + pressure * 0.55
+      pulse = 0.35 + Math.sin(time * 2.8) * 0.15 + pressure * 0.55
 
       if (pressure > 0.75 && turds.length < MAX_TURDS && Math.random() < dt * 7) {
-        turds.push(spawnTurd(emitterX(), emitterY() + 40, pressure))
+        turds.push(spawnTurd(emitterX(), emitterY(), pressure))
         pressure *= 0.55
-        squeeze = 1
+        pulse = 1
         shake = Math.min(12, shake + 4)
-        stinks.push({ x: emitterX(), y: emitterY() + 50, r: 20, life: 1 })
+        stinks.push({ x: emitterX(), y: emitterY() + 10, r: 20, life: 1 })
         if (Math.random() < 0.35) {
           whispers.push({
             text: WHISPERS[Math.floor(Math.random() * WHISPERS.length)],
@@ -403,7 +408,7 @@ export function PooSimulation() {
 
       for (const t of turds) drawTurd(ctx, t)
 
-      drawButt(ctx, emitterX(), emitterY(), squeeze, time)
+      drawVoidPortal(ctx, emitterX(), h * 0.1, pulse, time)
 
       for (const f of flies) {
         ctx.fillStyle = 'rgba(20, 20, 20, 0.85)'
@@ -439,7 +444,7 @@ export function PooSimulation() {
 
       ctx.font = '10px ui-monospace, monospace'
       ctx.fillStyle = 'rgba(180, 120, 60, 0.45)'
-      ctx.fillText('PhysX™ Cheek Solver · pressure ' + pressure.toFixed(2), 12, h - 8)
+      ctx.fillText('PhysX™ Void Emitter · pressure ' + pressure.toFixed(2), 12, h - 8)
 
       ctx.restore()
 
