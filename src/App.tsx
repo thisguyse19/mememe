@@ -3,28 +3,32 @@ import { AnimatePresence, motion } from 'framer-motion'
 import { DuckPond } from './components/DuckPond'
 import { HobbyLanding } from './components/HobbyLanding'
 import { NavPill } from './components/NavPill'
+import { PooSimulation } from './components/PooSimulation'
 import { SecretPortal } from './components/SecretPortal'
+import type { NavPage } from './config/nav'
 
 export default function App() {
-  const [duckMode, setDuckMode] = useState(false)
+  const [navPage, setNavPage] = useState<NavPage>('hobby')
+
+  const bgClass =
+    navPage === 'duck' ? '' : navPage === 'poo' ? 'septic-drift' : 'blue-drift'
 
   return (
-    <div className={`relative min-h-dvh overflow-x-hidden ${duckMode ? '' : 'blue-drift'}`}>
-      <AnimatePresence>{duckMode && <DuckPond key="pond" />}</AnimatePresence>
+    <div className={`relative min-h-dvh overflow-x-hidden ${bgClass}`}>
+      <AnimatePresence>
+        {navPage === 'duck' && <DuckPond key="pond" />}
+        {navPage === 'poo' && <PooSimulation key="poo" />}
+      </AnimatePresence>
 
       <nav
         className="pointer-events-none fixed top-0 right-0 left-0 z-20 flex justify-center px-4 pt-[max(0.75rem,env(safe-area-inset-top))]"
         aria-label="Primary"
       >
-        <NavPill
-          duckMode={duckMode}
-          onDuckMode={() => setDuckMode(true)}
-          onHobbyMode={() => setDuckMode(false)}
-        />
+        <NavPill currentPage={navPage} onNavigate={setNavPage} />
       </nav>
 
       <AnimatePresence>
-        {!duckMode && (
+        {navPage === 'hobby' && (
           <motion.div
             key="landing"
             initial={{ opacity: 1 }}

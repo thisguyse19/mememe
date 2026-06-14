@@ -93,6 +93,24 @@
       0 0 24px rgba(37, 99, 235, 0.2);
   }
 
+  .septic-drift {
+    background-color: #0f0a06;
+    background-image:
+      radial-gradient(ellipse 80% 50% at 50% 0%, rgba(120, 53, 15, 0.35), transparent 55%),
+      radial-gradient(ellipse 60% 40% at 80% 100%, rgba(34, 70, 20, 0.25), transparent 50%),
+      linear-gradient(180deg, #1a1008 0%, #0f0a06 50%, #0a1208 100%);
+    animation: septic-pulse 6s ease-in-out infinite alternate;
+  }
+
+  @keyframes septic-pulse {
+    0% {
+      filter: brightness(0.96) hue-rotate(0deg);
+    }
+    100% {
+      filter: brightness(1.04) hue-rotate(8deg);
+    }
+  }
+
   .nav-pill-input {
     caret-color: transparent;
   }

@@ -1,13 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { NAV_COMMANDS, NAV_INPUT_MAX } from '../config/duck'
+import { NAV_COMMANDS, NAV_INPUT_MAX, type NavPage } from '../config/nav'
 
 type NavPillProps = {
-  duckMode: boolean
-  onDuckMode: () => void
-  onHobbyMode: () => void
+  currentPage: NavPage
+  onNavigate: (page: NavPage) => void
 }
 
-export function NavPill({ duckMode, onDuckMode, onHobbyMode }: NavPillProps) {
+export function NavPill({ currentPage, onNavigate }: NavPillProps) {
   const [editing, setEditing] = useState(false)
   const [buffer, setBuffer] = useState('')
   const [reject, setReject] = useState(false)
@@ -22,14 +21,9 @@ export function NavPill({ duckMode, onDuckMode, onHobbyMode }: NavPillProps) {
   const submit = useCallback(
     (raw: string) => {
       const word = raw.toLowerCase().replace(/[^a-z]/g, '')
-      if (word === NAV_COMMANDS.duck) {
+      if (word === NAV_COMMANDS.duck || word === NAV_COMMANDS.hobby || word === NAV_COMMANDS.poo) {
         resetEditing()
-        onDuckMode()
-        return
-      }
-      if (word === NAV_COMMANDS.hobby) {
-        resetEditing()
-        onHobbyMode()
+        onNavigate(word)
         return
       }
       if (word.length === 0) {
@@ -42,7 +36,7 @@ export function NavPill({ duckMode, onDuckMode, onHobbyMode }: NavPillProps) {
         setBuffer('')
       }, 520)
     },
-    [onDuckMode, onHobbyMode, resetEditing],
+    [onNavigate, resetEditing],
   )
 
   useEffect(() => {
@@ -74,16 +68,21 @@ export function NavPill({ duckMode, onDuckMode, onHobbyMode }: NavPillProps) {
     setReject(false)
   }
 
-  const suffixLabel = duckMode ? NAV_COMMANDS.duck : NAV_COMMANDS.hobby
+  const pillAccent =
+    currentPage === 'poo'
+      ? 'ring-amber-900/40'
+      : currentPage === 'duck'
+        ? 'ring-blue-400/35'
+        : ''
 
   return (
     <div
       className={`glass-pill pointer-events-auto inline-flex w-fit max-w-[min(100vw-2rem,20rem)] items-center gap-2 rounded-full px-4 py-2 text-sm transition-[width,padding,box-shadow] duration-200 ${
-        editing ? 'ring-1 ring-blue-400/35' : ''
+        editing ? 'ring-1 ring-blue-400/35' : pillAccent
       } ${reject ? 'ring-1 ring-rose-400/45' : ''}`}
     >
       <span className="shrink-0 font-medium tracking-tight text-blue-50">mememe</span>
-      <span className="shrink-0 text-blue-200/30">/</span>
+      <span className="text-blue-200/30">/</span>
 
       {editing ? (
         <span className="relative inline-flex min-w-0 items-end leading-none">
@@ -132,11 +131,13 @@ export function NavPill({ duckMode, onDuckMode, onHobbyMode }: NavPillProps) {
       ) : (
         <button
           type="button"
-          className={`shrink-0 text-blue-100/55 hover:text-blue-100/80 ${duckMode ? 'text-blue-100/90' : ''}`}
-          aria-label={`Change destination, currently ${suffixLabel}`}
+          className={`shrink-0 text-blue-100/55 hover:text-blue-100/80 ${
+            currentPage !== 'hobby' ? 'text-blue-100/90' : ''
+          } ${currentPage === 'poo' ? 'text-amber-200/80' : ''}`}
+          aria-label={`Change destination, currently ${currentPage}`}
           onClick={startEditing}
         >
-          {suffixLabel}
+          {currentPage}
         </button>
       )}
     </div>
