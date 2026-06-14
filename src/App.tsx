@@ -16,7 +16,11 @@ export default function App() {
         className="pointer-events-none fixed top-0 right-0 left-0 z-20 flex justify-center px-4 pt-[max(0.75rem,env(safe-area-inset-top))]"
         aria-label="Primary"
       >
-        <NavPill duckMode={duckMode} onDuckMode={() => setDuckMode(true)} />
+        <NavPill
+          duckMode={duckMode}
+          onDuckMode={() => setDuckMode(true)}
+          onHobbyMode={() => setDuckMode(false)}
+        />
       </nav>
 
       <AnimatePresence>
