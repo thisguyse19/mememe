@@ -235,6 +235,15 @@ export function ElevatorSim() {
             assignment={assignment}
             destination={lastDestination}
             waitElapsed={waitElapsed}
+            error={errMsg}
+            onSelectFloor={callFloor}
+            onToggleAccessibility={() =>
+              setState((s) => ({
+                ...s,
+                accessibility: !s.accessibility,
+                extendedDwell: !s.accessibility,
+              }))
+            }
             onEnterCar={(id) => {
               setState((s) => enterCab(s, id))
               setAssignment(null)

@@ -1,6 +1,6 @@
 import { motion, AnimatePresence } from 'framer-motion'
 import { useEffect, useRef, useState } from 'react'
-import { CAR_COLORS, floorLabel } from '../elevator/sim'
+import { CAR_COLORS, floorLabel, FLOOR_DEFS, FLOOR_MAX, VIP_FLOOR } from '../elevator/sim'
 import type { Assignment, CarId, CrashState, SimCar, SimState } from '../elevator/types'
 
 type PolarisLobbyProps = {
@@ -9,6 +9,9 @@ type PolarisLobbyProps = {
   brand: SimState['brand']
   accessibility: boolean
   waitElapsed: number
+  onSelectFloor: (floor: number) => void
+  onToggleAccessibility: () => void
+  error?: string | null
 }
 
 export function PolarisLobbyGuidance({
@@ -17,13 +20,28 @@ export function PolarisLobbyGuidance({
   brand,
   accessibility,
   waitElapsed,
+  onSelectFloor,
+  onToggleAccessibility,
+  error,
 }: PolarisLobbyProps) {
   const isPolaris = brand === 'polaris' || brand === 'hybrid'
+  const [touchActive, setTouchActive] = useState(false)
+  const [dopMode, setDopMode] = useState<'grid' | 'keypad'>('grid')
+  const [keypadVal, setKeypadVal] = useState('')
+
+  const submitKeypad = () => {
+    const n = parseInt(keypadVal, 10)
+    if (keypadVal === 'PH' || keypadVal === String(VIP_FLOOR)) onSelectFloor(VIP_FLOOR)
+    else if (keypadVal === 'B1') onSelectFloor(-1)
+    else if (keypadVal === 'B2') onSelectFloor(-2)
+    else if (!Number.isNaN(n) && n >= FLOOR_DEFS[0].id && n <= FLOOR_MAX) onSelectFloor(n)
+    setKeypadVal('')
+  }
 
   return (
     <div className="polaris-fixture mx-auto w-full max-w-sm overflow-hidden rounded-sm shadow-2xl">
       <div className="polaris-fixture-bezel p-1">
-        <div className="polaris-screen relative min-h-[320px] bg-[#0a0a0a] px-6 py-8 text-white">
+        <div className="polaris-screen relative min-h-[380px] bg-[#0a0a0a] px-4 py-6 text-white sm:px-6 sm:py-8">
           <div className="flex items-center justify-between border-b border-white/10 pb-3">
             <span className="text-[10px] font-semibold uppercase tracking-[0.35em] text-white/45">
               {isPolaris ? 'KONE' : 'Otis'}
@@ -32,26 +50,101 @@ export function PolarisLobbyGuidance({
           </div>
 
           <AnimatePresence mode="wait">
-            {!assignment ? (
-              <motion.div
+            {!assignment && !touchActive ? (
+              <motion.button
                 key="idle"
-                className="flex min-h-[240px] flex-col items-center justify-center text-center"
+                type="button"
+                className="flex min-h-[280px] w-full cursor-pointer flex-col items-center justify-center border-none bg-transparent text-center text-white"
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
+                onClick={() => setTouchActive(true)}
               >
                 <motion.div
-                  className="h-16 w-16 rounded-full border-2 border-white/15"
-                  animate={{ scale: [1, 1.06, 1], opacity: [0.4, 0.7, 0.4] }}
+                  className="flex h-20 w-20 items-center justify-center rounded-full border-2 border-white/20"
+                  animate={{ scale: [1, 1.08, 1], opacity: [0.5, 0.9, 0.5] }}
                   transition={{ duration: 2.4, repeat: Infinity }}
-                />
+                >
+                  <span className="text-2xl text-white/50">👆</span>
+                </motion.div>
                 <p className="mt-6 text-sm font-light tracking-wide text-white/70">Select your destination</p>
                 <p className="mt-2 text-[11px] text-white/35">Touch panel to begin</p>
+              </motion.button>
+            ) : !assignment && touchActive ? (
+              <motion.div
+                key="picker"
+                className="min-h-[280px] py-2"
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0 }}
+              >
+                <div className="mb-3 flex gap-1">
+                  {(['grid', 'keypad'] as const).map((m) => (
+                    <button
+                      key={m}
+                      type="button"
+                      className={`flex-1 rounded py-1.5 text-[11px] capitalize ${dopMode === m ? 'bg-white text-black' : 'bg-white/10 text-white/70'}`}
+                      onClick={() => setDopMode(m)}
+                    >
+                      {m}
+                    </button>
+                  ))}
+                </div>
+
+                {dopMode === 'grid' ? (
+                  <div className="grid max-h-52 grid-cols-5 gap-1.5 overflow-y-auto pr-1">
+                    {FLOOR_DEFS.map((f) => (
+                      <button
+                        key={f.id}
+                        type="button"
+                        className={`rounded border border-white/15 py-2 text-xs font-medium transition hover:bg-white/15 active:scale-95 ${f.id === VIP_FLOOR ? 'border-amber-400/40 text-amber-200' : 'text-white/85'}`}
+                        onClick={() => onSelectFloor(f.id)}
+                      >
+                        {f.label}
+                      </button>
+                    ))}
+                  </div>
+                ) : (
+                  <div>
+                    <div className="mb-2 rounded-lg bg-white/10 px-3 py-2 text-right font-mono text-xl tracking-widest">
+                      {keypadVal || '—'}
+                    </div>
+                    <div className="grid grid-cols-3 gap-1.5">
+                      {['1', '2', '3', '4', '5', '6', '7', '8', '9', 'B1', '0', 'B2'].map((k) => (
+                        <button
+                          key={k}
+                          type="button"
+                          className="rounded border border-white/15 py-3 text-sm active:scale-95"
+                          onClick={() => setKeypadVal((v) => (v + k).slice(0, 4))}
+                        >
+                          {k}
+                        </button>
+                      ))}
+                    </div>
+                    <button
+                      type="button"
+                      className="mt-2 w-full rounded-lg bg-white py-2.5 text-sm font-medium text-black"
+                      onClick={submitKeypad}
+                    >
+                      Call elevator
+                    </button>
+                  </div>
+                )}
+
+                {error && <p className="mt-3 text-center text-xs text-rose-400">{error}</p>}
+
+                <button
+                  type="button"
+                  className="mt-3 w-full text-[10px] text-white/30 underline-offset-2 hover:text-white/50 hover:underline"
+                  onClick={() => setTouchActive(false)}
+                >
+                  Cancel
+                </button>
               </motion.div>
-            ) : (
+            ) : assignment ? (
               <motion.div
                 key="assigned"
-                className="flex min-h-[240px] flex-col items-center justify-center text-center"
+                className="flex min-h-[280px] flex-col items-center justify-center text-center"
                 initial={{ opacity: 0, scale: 0.96 }}
                 animate={{ opacity: 1, scale: 1 }}
               >
@@ -110,8 +203,22 @@ export function PolarisLobbyGuidance({
                   </motion.p>
                 )}
               </motion.div>
-            )}
+            ) : null}
           </AnimatePresence>
+
+          <div className="mt-2 flex items-center gap-2 border-t border-white/10 pt-3">
+            <button
+              type="button"
+              className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-base ${accessibility ? 'border-2 border-emerald-400 text-emerald-300' : 'border border-white/20 text-white/50'}`}
+              aria-label="Accessibility"
+              onClick={onToggleAccessibility}
+            >
+              ♿
+            </button>
+            <span className="text-[10px] text-white/35">
+              {accessibility ? 'Extended dwell enabled' : 'Accessibility'}
+            </span>
+          </div>
 
           <div className="absolute bottom-4 left-0 right-0 text-center text-[9px] uppercase tracking-widest text-white/20">
             mememe tower
@@ -298,6 +405,9 @@ type CommuterViewProps = {
   assignment: Assignment | null
   destination: number | null
   waitElapsed: number
+  error?: string | null
+  onSelectFloor: (floor: number) => void
+  onToggleAccessibility: () => void
   onEnterCar: (id: CarId) => void
   onCrash: (id: CarId) => void
 }
@@ -307,6 +417,9 @@ export function CommuterExperience({
   assignment,
   destination,
   waitElapsed,
+  error,
+  onSelectFloor,
+  onToggleAccessibility,
   onEnterCar,
   onCrash,
 }: CommuterViewProps) {
@@ -333,6 +446,9 @@ export function CommuterExperience({
           brand={state.brand}
           accessibility={state.accessibility}
           waitElapsed={waitElapsed}
+          onSelectFloor={onSelectFloor}
+          onToggleAccessibility={onToggleAccessibility}
+          error={error}
         />
       </div>
 
