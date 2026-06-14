@@ -24,7 +24,7 @@ import {
   VIP_FLOOR,
 } from '../elevator/sim'
 import { CommuterExperience } from './PolarisDisplay'
-import { EZ_FLOORS } from '../elevator/ezFloors'
+import { EXPRESS_ZONES, SKY_LOBBIES } from '../elevator/expressZone'
 import type {
   Assignment,
   CarId,
@@ -66,7 +66,7 @@ export function ElevatorSim() {
   const [assignment, setAssignment] = useState<Assignment | null>(null)
   const [lastDestination, setLastDestination] = useState<number | null>(null)
   const [assignTime, setAssignTime] = useState(0)
-  const [dopUi, setDopUi] = useState<DopUiMode>('ez')
+  const [dopUi, setDopUi] = useState<DopUiMode>('express')
   const [skin, setSkin] = useState<ThemeSkin>('black')
   const [keypadVal, setKeypadVal] = useState('')
   const [pinVal, setPinVal] = useState('')
@@ -114,11 +114,16 @@ export function ElevatorSim() {
   const waitElapsed = assignment ? Math.max(0, Math.floor(state.simTime - assignTime)) : 0
 
   const callFloor = useCallback(
-    (to: number, from = LOBBY_FLOOR) => {
+    (to: number, opts?: { express?: boolean; from?: number }) => {
+      const from = opts?.from ?? LOBBY_FLOOR
       setErrMsg(null)
       setLastDestination(to)
       setState((s) => {
-        const res = requestDestination(s, from, to, { accessible: s.accessibility, vip: to === VIP_FLOOR })
+        const res = requestDestination(s, from, to, {
+          accessible: s.accessibility,
+          vip: to === VIP_FLOOR,
+          express: opts?.express,
+        })
         if (res.error) {
           setErrMsg(res.error)
           return s
@@ -203,6 +208,9 @@ export function ElevatorSim() {
                 {assignment.arrow === 'left' ? '← Left bank' : 'Right bank →'} · ~{assignment.waitSec}s
               </p>
               <p className="mt-1 text-xs text-slate-400/70">{assignment.reason}</p>
+              {assignment.expressRoute && (
+                <p className="mt-1 text-[10px] text-sky-300/60">{assignment.expressRoute}</p>
+              )}
               {state.accessibility && (
                 <p className="mt-2 text-xs text-emerald-300/70">♿ Extended dwell · Audio guidance active</p>
               )}
@@ -280,7 +288,7 @@ export function ElevatorSim() {
               </div>
 
               <div className="flex gap-1 border-b px-2 py-2" style={{ borderColor: theme.border }}>
-                {(['ez', 'grid', 'keypad', 'directory'] as DopUiMode[]).map((m) => (
+                {(['express', 'grid', 'keypad', 'directory'] as DopUiMode[]).map((m) => (
                   <button
                     key={m}
                     type="button"
@@ -291,25 +299,41 @@ export function ElevatorSim() {
                     }}
                     onClick={() => setDopUi(m)}
                   >
-                    {m}
+                    {m === 'express' ? 'Express' : m}
                   </button>
                 ))}
               </div>
 
               <div className="p-4">
-                {dopUi === 'ez' && (
-                  <div className="grid grid-cols-2 gap-2">
-                    {EZ_FLOORS.map((z) => (
-                      <button
-                        key={z.floor}
-                        type="button"
-                        className="elev-floor-btn flex flex-col items-start py-2.5 text-left"
-                        style={{ borderColor: theme.border, color: theme.fg }}
-                        onClick={() => callFloor(z.floor)}
+                {dopUi === 'express' && (
+                  <div className="max-h-64 space-y-3 overflow-y-auto pr-1">
+                    <p className="text-[10px] opacity-50">
+                      Express Zone · non-stop via sky lobbies {SKY_LOBBIES.join(' · ')}
+                    </p>
+                    {EXPRESS_ZONES.map((zone) => (
+                      <div
+                        key={zone.id}
+                        className="rounded-xl p-2.5"
+                        style={{ border: `1px solid ${theme.border}` }}
                       >
-                        <span className="text-lg font-light">{z.label}</span>
-                        <span className="text-[10px] opacity-50">{z.sub}</span>
-                      </button>
+                        <div className="flex items-baseline justify-between gap-2">
+                          <span className="text-sm font-medium">{zone.name}</span>
+                          <span className="text-[9px] opacity-45">{zone.subtitle}</span>
+                        </div>
+                        <div className="mt-2 flex flex-wrap gap-1.5">
+                          {zone.picks.map((p) => (
+                            <button
+                              key={p.floor}
+                              type="button"
+                              className="elev-floor-btn px-2.5 py-1.5 text-xs tabular-nums"
+                              style={{ borderColor: theme.accent + '55', color: theme.fg }}
+                              onClick={() => callFloor(p.floor, { express: true })}
+                            >
+                              {p.label}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
                     ))}
                   </div>
                 )}

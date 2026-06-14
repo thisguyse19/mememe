@@ -32,7 +32,7 @@ export const FLOOR_MAX = VIP_FLOOR
 export type SystemBrand = 'compass360' | 'polaris' | 'hybrid' | 'collective'
 export type DoorState = 'closed' | 'opening' | 'open' | 'closing'
 export type TrafficMode = 'light' | 'normal' | 'peak'
-export type DopUiMode = 'ez' | 'grid' | 'keypad' | 'directory'
+export type DopUiMode = 'express' | 'grid' | 'keypad' | 'directory'
 export type ThemeSkin = 'black' | 'white' | 'silver' | 'gold'
 
 export type Rider = {
@@ -40,6 +40,7 @@ export type Rider = {
   from: number
   to: number
   accessible: boolean
+  express?: boolean
 }
 
 export type LobbyRequest = {
@@ -50,6 +51,8 @@ export type LobbyRequest = {
   assignedAt?: number
   accessible: boolean
   vip: boolean
+  express?: boolean
+  expressPath?: number[]
   boarded?: CarId
 }
 
@@ -114,6 +117,8 @@ export type Assignment = {
   waitSec: number
   reason: string
   arrow: 'left' | 'right' | 'center'
+  express?: boolean
+  expressRoute?: string
 }
 
 export type RemoteCall = {

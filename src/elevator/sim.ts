@@ -18,6 +18,7 @@ import type {
   TrafficMode,
 } from './types'
 import { CAR_IDS, FLOOR_DEFS, FLOOR_MAX, FLOOR_MIN, LOBBY_FLOOR, VIP_FLOOR } from './types'
+import { buildExpressPath, expressPathLabel, expressZoneForFloor } from './expressZone'
 
 const DEFAULT_CAR_SPEED = 1.35
 const DOOR_CYCLE = 0.55
@@ -109,20 +110,29 @@ function eta(car: SimCar, target: number, carSpeed: number): number {
   return dist / carSpeed + stops * (DOOR_CYCLE * 2 + DOOR_OPEN) + (car.door !== 'closed' ? 1 : 0)
 }
 
+function addExpressStops(car: SimCar, from: number, to: number) {
+  for (const stop of buildExpressPath(from, to)) addStop(car, stop)
+}
+
 export function dispatchAssign(state: SimState, req: LobbyRequest): Assignment {
   const brand = state.brand
+  const zone = req.express ? expressZoneForFloor(req.to) : undefined
   let best: CarId = 'A'
   let bestScore = Infinity
-  let bestReason = 'Nearest available car'
+  let bestReason = req.express ? 'Express Zone dispatch' : 'Nearest available car'
 
   for (const car of state.cars) {
     if (car.mode !== 'auto') continue
     const load = car.riders.length / CAPACITY
     if (load >= 1) continue
 
+    if (req.express && zone && !zone.cars.includes(car.id)) continue
+
     const pickupEta = eta(car, req.from, state.carSpeed)
     const tripEta = eta({ ...car, floor: req.from }, req.to, state.carSpeed)
     let score = pickupEta + tripEta
+
+    if (req.express && zone?.cars.includes(car.id)) score *= 0.55
 
     const sameZone = car.riders.some((r) => zoneOf(r.to) === zoneOf(req.to))
     const sameDest = car.riders.some((r) => r.to === req.to)
@@ -142,7 +152,8 @@ export function dispatchAssign(state: SimState, req: LobbyRequest): Assignment {
     if (score < bestScore) {
       bestScore = score
       best = car.id
-      if (sameDest) bestReason = 'SmartGroup™ — same destination'
+      if (req.express) bestReason = `Express Zone — ${zone?.name ?? 'non-stop'} · ${expressPathLabel(req.from, req.to)}`
+      else if (sameDest) bestReason = 'SmartGroup™ — same destination'
       else if (sameZone) bestReason = 'SmartGroup™ — same zone'
       else if (pickupEta < 2) bestReason = 'Car arriving imminently'
       else bestReason = brand === 'polaris' ? 'AI dispatch — optimal load balance' : 'Compass dispatch — shortest journey'
@@ -152,19 +163,43 @@ export function dispatchAssign(state: SimState, req: LobbyRequest): Assignment {
   const idx = CAR_IDS.indexOf(best)
   const arrow = idx <= 1 ? 'left' : 'right'
 
-  return { car: best, waitSec: Math.max(3, Math.round(bestScore)), reason: bestReason, arrow }
+  if (bestScore === Infinity) {
+    return {
+      car: zone?.cars[0] ?? 'A',
+      waitSec: 9999,
+      reason: 'No express cars available',
+      arrow,
+      express: req.express,
+    }
+  }
+
+  return {
+    car: best,
+    waitSec: Math.max(3, Math.round(bestScore)),
+    reason: bestReason,
+    arrow,
+    express: req.express,
+    expressRoute: req.express ? expressPathLabel(req.from, req.to) : undefined,
+  }
 }
 
 export function requestDestination(
   state: SimState,
   from: number,
   to: number,
-  opts?: { accessible?: boolean; vip?: boolean },
+  opts?: { accessible?: boolean; vip?: boolean; express?: boolean },
 ): { state: SimState; assignment?: Assignment; error?: string } {
   const next = structuredClone(state) as SimState
   if (from === to) return { state: next, error: 'Already on this floor' }
   if (to === VIP_FLOOR && !next.vipUnlocked && from === LOBBY_FLOOR) {
     return { state: next, error: `Floor ${VIP_FLOOR} requires VIP credential (PIN 7777)` }
+  }
+  if (opts?.express) {
+    const zone = expressZoneForFloor(to)
+    if (!zone) return { state: next, error: 'Express Zone unavailable for this floor' }
+    if (to === VIP_FLOOR && !next.vipUnlocked) {
+      return { state: next, error: `Floor ${VIP_FLOOR} requires VIP credential (PIN 7777)` }
+    }
   }
   if (next.fireService) return { state: next, error: 'Fire service active — lobby dispatch disabled' }
 
@@ -179,20 +214,28 @@ export function requestDestination(
     to,
     accessible: opts?.accessible ?? next.accessibility,
     vip: opts?.vip ?? false,
+    express: opts?.express ?? false,
+    expressPath: opts?.express ? buildExpressPath(from, to) : undefined,
   }
 
   if (usesDop) {
     const assignment = dispatchAssign(next, req)
+    if (assignment.waitSec >= 9999) {
+      return { state: next, error: 'No express cars available — try local service' }
+    }
     req.assigned = assignment.car
     req.assignedAt = next.simTime
     next.lobbyQueue.push(req)
     const car = next.cars.find((c) => c.id === assignment.car)!
-    addStop(car, from)
-    addStop(car, to)
+    if (req.express) addExpressStops(car, from, to)
+    else {
+      addStop(car, from)
+      addStop(car, to)
+    }
     log(
       next,
       'assign',
-      `→ Car ${assignment.car} to ${floorLabel(to)} (~${assignment.waitSec}s). ${assignment.reason}`,
+      `→ Car ${assignment.car}${req.express ? ' EXPRESS' : ''} to ${floorLabel(to)} (~${assignment.waitSec}s). ${assignment.reason}`,
     )
     if (next.accessibility) {
       log(next, 'voice', `Please proceed to elevator ${assignment.car}. Extended door time enabled.`)
@@ -303,8 +346,10 @@ function processBoarding(state: SimState, car: SimCar) {
   for (const w of waiting) {
     if (car.riders.length >= CAPACITY) break
     w.boarded = car.id
-    car.riders.push({ id: w.id, from: w.from, to: w.to, accessible: w.accessible })
-    addStop(car, w.to)
+    car.riders.push({ id: w.id, from: w.from, to: w.to, accessible: w.accessible, express: w.express })
+    if (w.express && w.expressPath) {
+      for (const stop of w.expressPath) addStop(car, stop)
+    } else addStop(car, w.to)
     log(state, 'board', `Rider boarded Car ${car.id} → ${floorLabel(w.to)}`)
   }
 

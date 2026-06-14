@@ -1,7 +1,7 @@
 import { motion, AnimatePresence } from 'framer-motion'
 import { useEffect, useRef, useState } from 'react'
+import { EXPRESS_ZONES, SKY_LOBBIES } from '../elevator/expressZone'
 import { CAR_COLORS, floorLabel, FLOOR_DEFS, FLOOR_MAX, VIP_FLOOR } from '../elevator/sim'
-import { EZ_FLOORS } from '../elevator/ezFloors'
 import type { Assignment, CarId, CrashState, SimCar, SimState } from '../elevator/types'
 
 type PolarisLobbyProps = {
@@ -10,7 +10,7 @@ type PolarisLobbyProps = {
   brand: SimState['brand']
   accessibility: boolean
   waitElapsed: number
-  onSelectFloor: (floor: number) => void
+  onSelectFloor: (floor: number, opts?: { express?: boolean }) => void
   onToggleAccessibility: () => void
   onClearAssignment: () => void
   error?: string | null
@@ -29,7 +29,7 @@ export function PolarisLobbyGuidance({
 }: PolarisLobbyProps) {
   const isPolaris = brand === 'polaris' || brand === 'hybrid'
   const [touchActive, setTouchActive] = useState(false)
-  const [dopMode, setDopMode] = useState<'ez' | 'grid' | 'keypad'>('ez')
+  const [dopMode, setDopMode] = useState<'express' | 'grid' | 'keypad'>('express')
   const [keypadVal, setKeypadVal] = useState('')
   const dismissRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
@@ -94,30 +94,43 @@ export function PolarisLobbyGuidance({
                 exit={{ opacity: 0 }}
               >
                 <div className="mb-3 flex gap-1">
-                  {(['ez', 'grid', 'keypad'] as const).map((m) => (
+                  {(['express', 'grid', 'keypad'] as const).map((m) => (
                     <button
                       key={m}
                       type="button"
-                      className={`flex-1 rounded py-1.5 text-[11px] uppercase tracking-wide ${dopMode === m ? 'bg-white text-black' : 'bg-white/10 text-white/70'}`}
+                      className={`flex-1 rounded py-1.5 text-[10px] uppercase tracking-wide ${dopMode === m ? 'bg-white text-black' : 'bg-white/10 text-white/70'}`}
                       onClick={() => setDopMode(m)}
                     >
-                      {m}
+                      {m === 'express' ? 'Express' : m}
                     </button>
                   ))}
                 </div>
 
-                {dopMode === 'ez' ? (
-                  <div className="grid grid-cols-2 gap-2">
-                    {EZ_FLOORS.map((z) => (
-                      <button
-                        key={z.floor}
-                        type="button"
-                        className={`flex flex-col items-start rounded-lg border px-3 py-2.5 text-left transition hover:bg-white/10 active:scale-[0.98] ${z.floor === VIP_FLOOR ? 'border-amber-400/35' : 'border-white/15'}`}
-                        onClick={() => onSelectFloor(z.floor)}
-                      >
-                        <span className="text-lg font-light tabular-nums text-white">{z.label}</span>
-                        <span className="text-[10px] text-white/45">{z.sub}</span>
-                      </button>
+                {dopMode === 'express' ? (
+                  <div className="max-h-52 space-y-3 overflow-y-auto pr-1">
+                    <p className="text-[10px] leading-relaxed text-white/40">
+                      Express Zone · non-stop via sky lobbies{' '}
+                      {SKY_LOBBIES.map((s) => s).join(' · ')}
+                    </p>
+                    {EXPRESS_ZONES.map((zone) => (
+                      <div key={zone.id} className="rounded-lg border border-white/10 bg-white/[0.03] p-2.5">
+                        <div className="flex items-baseline justify-between gap-2">
+                          <span className="text-xs font-medium text-white/90">{zone.name}</span>
+                          <span className="text-[9px] text-white/35">{zone.subtitle}</span>
+                        </div>
+                        <div className="mt-2 flex flex-wrap gap-1.5">
+                          {zone.picks.map((p) => (
+                            <button
+                              key={p.floor}
+                              type="button"
+                              className="rounded border border-sky-400/25 bg-sky-950/40 px-2.5 py-1.5 text-xs tabular-nums text-sky-100/90 transition hover:bg-sky-900/50 active:scale-95"
+                              onClick={() => onSelectFloor(p.floor, { express: true })}
+                            >
+                              {p.label}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
                     ))}
                   </div>
                 ) : dopMode === 'grid' ? (
@@ -177,6 +190,9 @@ export function PolarisLobbyGuidance({
                 initial={{ opacity: 0, scale: 0.96 }}
                 animate={{ opacity: 1, scale: 1 }}
               >
+                {assignment.express && (
+                  <p className="mb-2 text-[10px] uppercase tracking-[0.35em] text-sky-300/70">Express Zone</p>
+                )}
                 <p className="text-xs uppercase tracking-[0.4em] text-white/50">Proceed to elevator</p>
 
                 <motion.div
@@ -206,6 +222,12 @@ export function PolarisLobbyGuidance({
                 {destination !== null && (
                   <p className="text-lg font-light text-white/85">
                     Destination · <span className="font-medium">{floorLabel(destination)}</span>
+                  </p>
+                )}
+
+                {assignment.expressRoute && (
+                  <p className="mt-2 max-w-[220px] text-[10px] leading-relaxed text-sky-200/60">
+                    {assignment.expressRoute}
                   </p>
                 )}
 
@@ -289,7 +311,6 @@ export function PolarisCarDisplay({ car, crash, brand, riderDest }: PolarisCarPr
         <div
           className={`polaris-screen relative overflow-hidden bg-[#050505] ${crash?.active && crash.car === car.id ? 'polaris-crash-shake' : ''}`}
         >
-          {/* Header strip */}
           <div className="flex items-center justify-between border-b border-white/10 px-4 py-2">
             <span className="text-[9px] font-bold uppercase tracking-[0.3em] text-white/40">
               {isPolaris ? 'KONE' : 'OTIS'}
@@ -297,7 +318,6 @@ export function PolarisCarDisplay({ car, crash, brand, riderDest }: PolarisCarPr
             <span className="text-[9px] text-white/30">Car {car.id}</span>
           </div>
 
-          {/* Main floor readout — classic dot-matrix / LED style */}
           <div className="relative px-4 py-6">
             <AnimatePresence mode="wait">
               {crash?.active && crash.car === car.id ? (
@@ -312,31 +332,21 @@ export function PolarisCarDisplay({ car, crash, brand, riderDest }: PolarisCarPr
                   transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
                 >
                   <div className="flex items-center gap-4">
-                    <motion.div
-                      className="flex flex-col items-center gap-0.5"
-                      animate={{ opacity: goingUp ? 1 : 0.15 }}
-                    >
+                    <motion.div className="flex flex-col items-center gap-0.5" animate={{ opacity: goingUp ? 1 : 0.15 }}>
                       <span className="text-lg leading-none text-emerald-400">▲</span>
                     </motion.div>
-
                     <div className="polaris-floor-digits relative flex items-baseline justify-center tabular-nums">
                       <span className="text-7xl font-light tracking-tight text-white sm:text-8xl">
                         {floorLabel(displayFloor)}
                       </span>
                     </div>
-
-                    <motion.div
-                      className="flex flex-col items-center gap-0.5"
-                      animate={{ opacity: goingDown ? 1 : 0.15 }}
-                    >
+                    <motion.div className="flex flex-col items-center gap-0.5" animate={{ opacity: goingDown ? 1 : 0.15 }}>
                       <span className="text-lg leading-none text-rose-400">▼</span>
                     </motion.div>
                   </div>
                 </motion.div>
               )}
             </AnimatePresence>
-
-            {/* Door status */}
             <motion.p
               className="mt-4 text-center text-[10px] font-medium uppercase tracking-[0.45em] text-white/45"
               animate={{ opacity: car.door === 'open' ? [0.5, 1, 0.5] : 1 }}
@@ -346,7 +356,6 @@ export function PolarisCarDisplay({ car, crash, brand, riderDest }: PolarisCarPr
             </motion.p>
           </div>
 
-          {/* Destination strip (Polaris) */}
           {isPolaris && car.stops.length > 0 && !crash?.active && (
             <div className="border-t border-white/8 px-4 py-3">
               <p className="text-[8px] uppercase tracking-widest text-white/30">Next stops</p>
@@ -373,7 +382,6 @@ export function PolarisCarDisplay({ car, crash, brand, riderDest }: PolarisCarPr
             </div>
           )}
 
-          {/* Capacity bar */}
           <div className="px-4 pb-4">
             <div className="h-1 overflow-hidden rounded-full bg-white/8">
               <motion.div
@@ -435,7 +443,7 @@ type CommuterViewProps = {
   destination: number | null
   waitElapsed: number
   error?: string | null
-  onSelectFloor: (floor: number) => void
+  onSelectFloor: (floor: number, opts?: { express?: boolean }) => void
   onToggleAccessibility: () => void
   onClearAssignment: () => void
   onCarSpeedChange: (speed: number) => void
@@ -468,7 +476,6 @@ export function CommuterExperience({
 
   return (
     <div className="grid gap-6 lg:grid-cols-2">
-      {/* Lobby wayfinding display */}
       <div>
         <p className="mb-3 text-center text-[10px] uppercase tracking-[0.35em] text-slate-500">
           Lobby · Destination Operating Panel
@@ -486,7 +493,6 @@ export function CommuterExperience({
         />
       </div>
 
-      {/* In-car / hall lantern display */}
       <div>
         <p className="mb-3 text-center text-[10px] uppercase tracking-[0.35em] text-slate-500">
           Car {viewCar} · Passenger Display
@@ -516,7 +522,6 @@ export function CommuterExperience({
         </div>
       </div>
 
-      {/* Speed + hall lanterns */}
       <div className="lg:col-span-2">
         <div className="elev-card mb-4 p-4">
           <div className="flex flex-wrap items-center justify-between gap-3">
@@ -549,9 +554,7 @@ export function CommuterExperience({
         <div className="flex flex-wrap justify-center gap-4">
           {(['A', 'B', 'C', 'D'] as CarId[]).map((id) => {
             const c = state.cars.find((x) => x.id === id)!
-            return (
-              <HallLantern key={id} car={c} highlight={id === viewCar} crash={state.crash} />
-            )
+            return <HallLantern key={id} car={c} highlight={id === viewCar} crash={state.crash} />
           })}
         </div>
       </div>
