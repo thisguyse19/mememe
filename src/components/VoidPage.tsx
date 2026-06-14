@@ -1090,6 +1090,7 @@ export function VoidPage() {
       </AnimatePresence>
 
       <ApplePayTitheSheet
+        key={paySheetAmount ?? 'closed'}
         open={paySheetAmount !== null}
         amount={paySheetAmount ?? 0}
         onClose={() => setPaySheetAmount(null)}

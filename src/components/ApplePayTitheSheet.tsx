@@ -1,5 +1,6 @@
 import { motion, AnimatePresence } from 'framer-motion'
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 
 type ApplePayTitheSheetProps = {
   open: boolean
@@ -10,31 +11,48 @@ type ApplePayTitheSheetProps = {
 
 export function ApplePayTitheSheet({ open, amount, onClose, onPaid }: ApplePayTitheSheetProps) {
   const [phase, setPhase] = useState<'idle' | 'authorizing' | 'done'>('idle')
+  const timersRef = useRef<number[]>([])
+
+  const clearTimers = () => {
+    for (const id of timersRef.current) window.clearTimeout(id)
+    timersRef.current = []
+  }
 
   const close = () => {
+    clearTimers()
     setPhase('idle')
     onClose()
   }
 
+  useEffect(() => () => clearTimers(), [])
+
   const pay = () => {
     if (phase !== 'idle') return
     setPhase('authorizing')
-    window.setTimeout(() => {
-      setPhase('done')
+    clearTimers()
+
+    timersRef.current.push(
       window.setTimeout(() => {
-        onPaid(amount)
-        close()
-      }, 900)
-    }, 1400)
+        setPhase('done')
+        timersRef.current.push(
+          window.setTimeout(() => {
+            onPaid(amount)
+            close()
+          }, 900),
+        )
+      }, 1400),
+    )
   }
 
-  return (
+  if (typeof document === 'undefined') return null
+
+  return createPortal(
     <AnimatePresence>
       {open && (
         <>
           <motion.button
             type="button"
-            className="apple-pay-backdrop fixed inset-0 z-50 border-none bg-black/55 backdrop-blur-sm"
+            className="apple-pay-backdrop fixed inset-0 z-[9998] border-none bg-black/55 backdrop-blur-sm"
             aria-label="Dismiss Apple Pay"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -42,14 +60,15 @@ export function ApplePayTitheSheet({ open, amount, onClose, onPaid }: ApplePayTi
             onClick={close}
           />
           <motion.div
-            key={amount}
-            className="apple-pay-sheet fixed inset-x-0 bottom-0 z-50 mx-auto max-w-md rounded-t-[1.35rem] bg-[#f2f2f7] px-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] pt-3 text-black shadow-2xl"
+            className="apple-pay-sheet pointer-events-auto fixed inset-x-0 bottom-0 z-[9999] mx-auto max-w-md rounded-t-[1.35rem] bg-[#f2f2f7] px-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] pt-3 text-black shadow-2xl"
             initial={{ y: '100%' }}
             animate={{ y: 0 }}
             exit={{ y: '100%' }}
             transition={{ type: 'spring', stiffness: 420, damping: 36 }}
             role="dialog"
+            aria-modal="true"
             aria-label="Apple Pay"
+            onClick={(e) => e.stopPropagation()}
           >
             <div className="mx-auto mb-3 h-1 w-10 rounded-full bg-black/15" />
 
@@ -80,9 +99,9 @@ export function ApplePayTitheSheet({ open, amount, onClose, onPaid }: ApplePayTi
               </div>
             </div>
 
-            <motion.button
+            <button
               type="button"
-              className="apple-pay-confirm mt-5 flex w-full items-center justify-center gap-2 rounded-xl py-4 text-[17px] font-semibold text-white disabled:opacity-70"
+              className="apple-pay-confirm mt-5 flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl py-4 text-[17px] font-semibold text-white disabled:cursor-not-allowed disabled:opacity-70"
               disabled={phase !== 'idle'}
               onClick={pay}
             >
@@ -92,14 +111,13 @@ export function ApplePayTitheSheet({ open, amount, onClose, onPaid }: ApplePayTi
                 </>
               )}
               {phase === 'authorizing' && (
-                <motion.span
-                  className="inline-flex h-6 w-6 items-center justify-center rounded-full border-2 border-white/30 border-t-white"
-                  animate={{ rotate: 360 }}
-                  transition={{ duration: 0.8, repeat: Infinity, ease: 'linear' }}
+                <span
+                  className="inline-block h-6 w-6 animate-spin rounded-full border-2 border-white/30 border-t-white"
+                  aria-hidden="true"
                 />
               )}
               {phase === 'done' && <span>Paid ✓</span>}
-            </motion.button>
+            </button>
 
             <p className="mt-3 text-center text-[11px] leading-relaxed text-black/35">
               Your tithe will be converted to vibes and forwarded to Gary.
@@ -107,7 +125,8 @@ export function ApplePayTitheSheet({ open, amount, onClose, onPaid }: ApplePayTi
           </motion.div>
         </>
       )}
-    </AnimatePresence>
+    </AnimatePresence>,
+    document.body,
   )
 }
 
