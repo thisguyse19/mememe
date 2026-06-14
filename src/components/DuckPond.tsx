@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef } from 'react'
 
-const GRID = 96
-const DAMPING = 0.996
+const GRID = 112
+const DAMPING = 0.993
 
 type DuckBody = {
   x: number
@@ -16,11 +16,7 @@ type DragState = {
   active: boolean
   offsetX: number
   offsetY: number
-  lastX: number
-  lastY: number
-  lastT: number
-  throwVx: number
-  throwVy: number
+  samples: { x: number; y: number; t: number }[]
   lastRippleT: number
 }
 
@@ -64,16 +60,16 @@ function sampleNormal(
   width: number,
   height: number,
 ): { nx: number; ny: number; h: number } {
-  const eps = 4
+  const eps = 3
   const h = sampleHeight(field, size, px, py, width, height)
   const hx =
     sampleHeight(field, size, px + eps, py, width, height) -
     sampleHeight(field, size, px - eps, py, width, height)
   const hy =
     sampleHeight(field, size, px, py + eps, width, height) -
-    sampleHeight(field, size, px - eps, py, width, height)
-  const nx = -hx * 0.9
-  const ny = -hy * 0.9
+    sampleHeight(field, size, px, py - eps, width, height)
+  const nx = -hx * 1.4
+  const ny = -hy * 1.4
   const len = Math.hypot(nx, ny, 1)
   return { nx: nx / len, ny: ny / len, h }
 }
@@ -103,7 +99,7 @@ function disturb(
       const d2 = dx * dx + dy * dy
       if (d2 <= r2) {
         const falloff = 1 - d2 / r2
-        field[y * size + x] += strength * falloff * falloff * falloff
+        field[y * size + x] += strength * falloff * falloff
       }
     }
   }
@@ -116,6 +112,40 @@ function clampSpeed(vx: number, vy: number, max: number) {
   return { vx: vx * k, vy: vy * k }
 }
 
+function waterShade(
+  sx: number,
+  sy: number,
+  depth: number,
+  nx: number,
+  ny: number,
+  h: number,
+  time: number,
+): [number, number, number] {
+  const caustic =
+    Math.sin(sx * 0.014 + time * 0.65) * Math.cos(sy * 0.011 - time * 0.5) * 0.022
+  const light = Math.max(0, nx * 0.28 + ny * 0.2 + 0.36 + h * 2.8 + caustic)
+
+  const deepR = 1 + depth * 4
+  const deepG = 6 + depth * 12
+  const deepB = 18 + depth * 24
+
+  const shallowR = 6 + light * 16
+  const shallowG = 22 + light * 28
+  const shallowB = 40 + light * 38
+
+  const mix = Math.min(1, Math.max(0, light * 0.5 + Math.abs(h) * 4.5))
+  const r = deepR * (1 - mix) + shallowR * mix
+  const g = deepG * (1 - mix) + shallowG * mix
+  const b = deepB * (1 - mix) + shallowB * mix
+
+  const spec = Math.pow(Math.max(0, nx * 0.5 + ny * 0.18 + 0.26), 7) * 32
+  return [
+    Math.min(255, r + spec),
+    Math.min(255, g + spec * 0.55),
+    Math.min(255, b + spec * 0.35),
+  ]
+}
+
 function drawWater(
   ctx: CanvasRenderingContext2D,
   offCtx: CanvasRenderingContext2D,
@@ -125,13 +155,14 @@ function drawWater(
   height: number,
   time: number,
 ) {
-  const scale = 0.45
+  const scale = 0.5
   const rw = Math.max(1, Math.floor(width * scale))
   const rh = Math.max(1, Math.floor(height * scale))
   offCtx.canvas.width = rw
   offCtx.canvas.height = rh
   const image = offCtx.createImageData(rw, rh)
   const data = image.data
+  const refract = 22
 
   for (let py = 0; py < rh; py++) {
     for (let px = 0; px < rw; px++) {
@@ -139,28 +170,24 @@ function drawWater(
       const sy = (py / rh) * height
       const { nx, ny, h } = sampleNormal(field, size, sx, sy, width, height)
       const depth = sy / height
-      const caustic =
-        Math.sin(sx * 0.012 + time * 0.7) * Math.cos(sy * 0.01 - time * 0.55) * 0.015
-      const light = Math.max(0, nx * 0.22 + ny * 0.16 + 0.38 + h * 1.1 + caustic)
 
-      const deepR = 1 + depth * 4
-      const deepG = 8 + depth * 14
-      const deepB = 22 + depth * 26
+      // refraction: sample shade from displaced coords for distorted-water look
+      const dx = nx * (h * refract * 55 + 2.5)
+      const dy = ny * (h * refract * 55 + 2.5)
+      const [r, g, b] = waterShade(
+        sx + dx,
+        sy + dy,
+        depth,
+        nx,
+        ny,
+        h,
+        time,
+      )
 
-      const shallowR = 8 + light * 18
-      const shallowG = 28 + light * 32
-      const shallowB = 48 + light * 42
-
-      const mix = Math.min(1, Math.max(0, light * 0.55 + h * 2.2))
-      const r = deepR * (1 - mix) + shallowR * mix
-      const g = deepG * (1 - mix) + shallowG * mix
-      const b = deepB * (1 - mix) + shallowB * mix
-
-      const spec = Math.pow(Math.max(0, nx * 0.45 + ny * 0.15 + 0.28), 8) * 28
       const idx = (py * rw + px) * 4
-      data[idx] = Math.min(255, r + spec)
-      data[idx + 1] = Math.min(255, g + spec * 0.6)
-      data[idx + 2] = Math.min(255, b + spec * 0.4)
+      data[idx] = r
+      data[idx + 1] = g
+      data[idx + 2] = b
       data[idx + 3] = 255
     }
   }
@@ -179,7 +206,6 @@ function drawDuck(ctx: CanvasRenderingContext2D, duck: DuckBody, bob: number) {
   ctx.translate(x, y)
   ctx.rotate(duck.angle * 0.6)
 
-  // soft contact shadow on water
   ctx.save()
   ctx.scale(1, 0.28)
   ctx.fillStyle = 'rgba(0, 8, 20, 0.28)'
@@ -188,7 +214,6 @@ function drawDuck(ctx: CanvasRenderingContext2D, duck: DuckBody, bob: number) {
   ctx.fill()
   ctx.restore()
 
-  // body — plump teardrop from above
   const body = ctx.createRadialGradient(-s * 0.08, -s * 0.12, s * 0.08, 0, s * 0.02, s * 0.72)
   body.addColorStop(0, '#fff1a8')
   body.addColorStop(0.45, '#ffd54f')
@@ -198,13 +223,11 @@ function drawDuck(ctx: CanvasRenderingContext2D, duck: DuckBody, bob: number) {
   ctx.ellipse(0, s * 0.04, s * 0.62, s * 0.48, 0, 0, Math.PI * 2)
   ctx.fill()
 
-  // tail bump
   ctx.fillStyle = '#ffc107'
   ctx.beginPath()
   ctx.ellipse(s * 0.48, s * 0.02, s * 0.16, s * 0.12, 0.5, 0, Math.PI * 2)
   ctx.fill()
 
-  // head
   const head = ctx.createRadialGradient(-s * 0.06, -s * 0.38, s * 0.04, -s * 0.04, -s * 0.32, s * 0.3)
   head.addColorStop(0, '#fff8dc')
   head.addColorStop(1, '#ffca28')
@@ -213,7 +236,6 @@ function drawDuck(ctx: CanvasRenderingContext2D, duck: DuckBody, bob: number) {
   ctx.arc(-s * 0.04, -s * 0.32, s * 0.3, 0, Math.PI * 2)
   ctx.fill()
 
-  // beak — small, neat
   ctx.fillStyle = '#ff8f00'
   ctx.beginPath()
   ctx.moveTo(-s * 0.28, -s * 0.3)
@@ -222,7 +244,6 @@ function drawDuck(ctx: CanvasRenderingContext2D, duck: DuckBody, bob: number) {
   ctx.closePath()
   ctx.fill()
 
-  // eye
   ctx.fillStyle = '#0f172a'
   ctx.beginPath()
   ctx.arc(-s * 0.1, -s * 0.36, s * 0.038, 0, Math.PI * 2)
@@ -232,14 +253,12 @@ function drawDuck(ctx: CanvasRenderingContext2D, duck: DuckBody, bob: number) {
   ctx.arc(-s * 0.088, -s * 0.372, s * 0.014, 0, Math.PI * 2)
   ctx.fill()
 
-  // wing seam
   ctx.strokeStyle = 'rgba(230, 160, 0, 0.35)'
   ctx.lineWidth = 1.2
   ctx.beginPath()
   ctx.ellipse(s * 0.08, s * 0.06, s * 0.22, s * 0.14, 0.55, 0.6, Math.PI * 1.05)
   ctx.stroke()
 
-  // subtle outline
   ctx.strokeStyle = 'rgba(180, 120, 0, 0.22)'
   ctx.lineWidth = 1
   ctx.beginPath()
@@ -247,6 +266,14 @@ function drawDuck(ctx: CanvasRenderingContext2D, duck: DuckBody, bob: number) {
   ctx.stroke()
 
   ctx.restore()
+}
+
+function throwVelocity(samples: { x: number; y: number; t: number }[]) {
+  if (samples.length < 2) return { vx: 0, vy: 0 }
+  const a = samples[samples.length - 1]
+  const b = samples[Math.max(0, samples.length - 4)]
+  const dt = Math.max(0.008, a.t - b.t)
+  return { vx: (a.x - b.x) / dt, vy: (a.y - b.y) / dt }
 }
 
 export function DuckPond() {
@@ -257,11 +284,7 @@ export function DuckPond() {
     active: false,
     offsetX: 0,
     offsetY: 0,
-    lastX: 0,
-    lastY: 0,
-    lastT: 0,
-    throwVx: 0,
-    throwVy: 0,
+    samples: [],
     lastRippleT: 0,
   })
   const sizeRef = useRef({ w: 0, h: 0 })
@@ -270,10 +293,11 @@ export function DuckPond() {
   const wakeRef = useRef(0)
 
   const DUCK_R = 36
-  const RESTITUTION = 0.28
-  const WATER_DRAG = 0.875
-  const MAX_SPEED = 2.8
-  const BOB_SCALE = 3.5
+  const RESTITUTION = 0.62
+  const DRAG = 1.8
+  const MAX_SPEED = 920
+  const THROW_SCALE = 0.52
+  const BOB_SCALE = 5
 
   const pointerToCanvas = useCallback((clientX: number, clientY: number) => {
     const canvas = canvasRef.current
@@ -282,7 +306,7 @@ export function DuckPond() {
     return { x: clientX - rect.left, y: clientY - rect.top }
   }, [])
 
-  const maybeRipple = useCallback(
+  const addRipple = useCallback(
     (
       px: number,
       py: number,
@@ -292,7 +316,7 @@ export function DuckPond() {
       state: DragState,
     ) => {
       const now = performance.now()
-      if (now - state.lastRippleT < minIntervalMs) return
+      if (minIntervalMs > 0 && now - state.lastRippleT < minIntervalMs) return
       state.lastRippleT = now
       const { w, h } = sizeRef.current
       disturb(buffersRef.current.current, GRID, px, py, w, h, radius, strength)
@@ -331,8 +355,8 @@ export function DuckPond() {
 
     const { current } = buffersRef.current
     const { w, h } = sizeRef.current
-    for (let i = 0; i < 3; i++) {
-      disturb(current, GRID, w * (0.3 + i * 0.2), h * (0.4 + i * 0.1), w, h, 18, 0.035)
+    for (let i = 0; i < 4; i++) {
+      disturb(current, GRID, w * (0.25 + i * 0.18), h * (0.35 + i * 0.12), w, h, 28, 0.09)
     }
     buffersRef.current.previous.set(current)
 
@@ -361,15 +385,16 @@ export function DuckPond() {
       ;[buf.current, buf.previous] = [buf.previous, buf.current]
 
       if (!drag.active) {
-        duck.vx *= WATER_DRAG
-        duck.vy *= WATER_DRAG
+        const dragFactor = Math.exp(-DRAG * dt)
+        duck.vx *= dragFactor
+        duck.vy *= dragFactor
 
         const capped = clampSpeed(duck.vx, duck.vy, MAX_SPEED)
         duck.vx = capped.vx
         duck.vy = capped.vy
 
-        duck.x += duck.vx
-        duck.y += duck.vy
+        duck.x += duck.vx * dt
+        duck.y += duck.vy * dt
 
         let hitEdge = false
         if (duck.x < DUCK_R) {
@@ -392,18 +417,18 @@ export function DuckPond() {
         }
 
         if (hitEdge) {
-          maybeRipple(duck.x, duck.y, 14, 0.04, 120, drag)
+          addRipple(duck.x, duck.y, 26, 0.14, 60, drag)
         }
 
-        duck.angularVel += (duck.vx * 0.0015 - duck.angle * 0.04) * dt * 60
-        duck.angularVel *= 0.9
+        duck.angularVel += (duck.vx * 0.00035 - duck.angle * 0.05) * dt * 60
+        duck.angularVel *= Math.pow(0.9, dt * 60)
         duck.angle += duck.angularVel * dt * 60
 
         const speed = Math.hypot(duck.vx, duck.vy)
         wakeRef.current += dt
-        if (speed > 0.55 && wakeRef.current > 0.18) {
+        if (speed > 40 && wakeRef.current > 0.07) {
           wakeRef.current = 0
-          maybeRipple(duck.x, duck.y, 10, 0.018 + speed * 0.008, 180, drag)
+          addRipple(duck.x, duck.y, 18, 0.05 + speed * 0.00008, 70, drag)
         }
       }
 
@@ -426,19 +451,17 @@ export function DuckPond() {
       if (dist > DUCK_R * 1.5) return
 
       canvas.setPointerCapture(e.pointerId)
+      const t = performance.now()
       dragRef.current = {
         active: true,
         offsetX: x - duck.x,
         offsetY: y - duck.y,
-        lastX: x,
-        lastY: y,
-        lastT: performance.now(),
-        throwVx: 0,
-        throwVy: 0,
+        samples: [{ x, y, t }],
         lastRippleT: 0,
       }
       duck.vx = 0
       duck.vy = 0
+      addRipple(duck.x, duck.y, 22, 0.1, 0, dragRef.current)
     }
 
     const onPointerMove = (e: PointerEvent) => {
@@ -446,34 +469,44 @@ export function DuckPond() {
       const { x, y } = pointerToCanvas(e.clientX, e.clientY)
       const { w, h } = sizeRef.current
       const duck = duckRef.current
-      const now = performance.now()
-      const dt = Math.max(0.001, (now - dragRef.current.lastT) / 1000)
+      const t = performance.now()
 
-      dragRef.current.throwVx = (x - dragRef.current.lastX) / dt
-      dragRef.current.throwVy = (y - dragRef.current.lastY) / dt
-      dragRef.current.lastX = x
-      dragRef.current.lastY = y
-      dragRef.current.lastT = now
+      const prevX = duck.x
+      const prevY = duck.y
 
       duck.x = Math.max(DUCK_R, Math.min(w - DUCK_R, x - dragRef.current.offsetX))
       duck.y = Math.max(DUCK_R, Math.min(h - DUCK_R, y - dragRef.current.offsetY))
 
-      maybeRipple(duck.x, duck.y, 12, 0.045, 90, dragRef.current)
-      duck.angularVel = dragRef.current.throwVx * 0.0006
+      dragRef.current.samples.push({ x, y, t })
+      if (dragRef.current.samples.length > 8) {
+        dragRef.current.samples.shift()
+      }
+
+      const moveDist = Math.hypot(duck.x - prevX, duck.y - prevY)
+      if (moveDist > 0.5) {
+        addRipple(duck.x, duck.y, 20, 0.06 + moveDist * 0.004, 55, dragRef.current)
+      }
+
+      const { vx } = throwVelocity(dragRef.current.samples)
+      duck.angularVel = vx * 0.00025
     }
 
     const onPointerUp = (e: PointerEvent) => {
       if (!dragRef.current.active) return
       canvas.releasePointerCapture(e.pointerId)
       dragRef.current.active = false
+
+      const throwV = throwVelocity(dragRef.current.samples)
       const capped = clampSpeed(
-        dragRef.current.throwVx * 0.06,
-        dragRef.current.throwVy * 0.06,
-        MAX_SPEED * 0.75,
+        throwV.vx * THROW_SCALE,
+        throwV.vy * THROW_SCALE,
+        MAX_SPEED,
       )
       duckRef.current.vx = capped.vx
       duckRef.current.vy = capped.vy
-      maybeRipple(duckRef.current.x, duckRef.current.y, 14, 0.05, 0, dragRef.current)
+
+      addRipple(duckRef.current.x, duckRef.current.y, 30, 0.16, 0, dragRef.current)
+      dragRef.current.samples = []
     }
 
     canvas.addEventListener('pointerdown', onPointerDown)
@@ -489,7 +522,7 @@ export function DuckPond() {
       canvas.removeEventListener('pointerup', onPointerUp)
       canvas.removeEventListener('pointercancel', onPointerUp)
     }
-  }, [pointerToCanvas, maybeRipple])
+  }, [pointerToCanvas, addRipple])
 
   return (
     <canvas
