@@ -21,14 +21,9 @@ export function NavPill({ currentPage, onNavigate }: NavPillProps) {
   const submit = useCallback(
     (raw: string) => {
       const word = raw.toLowerCase().replace(/[^a-z]/g, '')
-      if (
-        word === NAV_COMMANDS.duck ||
-        word === NAV_COMMANDS.hobby ||
-        word === NAV_COMMANDS.poo ||
-        word === NAV_COMMANDS.cursed
-      ) {
+      if (Object.values(NAV_COMMANDS).includes(word as NavPage)) {
         resetEditing()
-        onNavigate(word)
+        onNavigate(word as NavPage)
         return
       }
       if (word.length === 0) {
@@ -80,7 +75,20 @@ export function NavPill({ currentPage, onNavigate }: NavPillProps) {
         ? 'ring-blue-400/35'
         : currentPage === 'cursed'
           ? 'ring-fuchsia-500/35'
-          : ''
+          : currentPage === 'lobby'
+            ? 'ring-lime-400/30'
+            : ''
+
+  const pageColor =
+    currentPage === 'poo'
+      ? 'text-amber-200/80'
+      : currentPage === 'cursed'
+        ? 'text-fuchsia-200/80'
+        : currentPage === 'lobby'
+          ? 'text-lime-200/80'
+          : currentPage !== 'hobby'
+            ? 'text-blue-100/90'
+            : ''
 
   return (
     <div
@@ -138,9 +146,7 @@ export function NavPill({ currentPage, onNavigate }: NavPillProps) {
       ) : (
         <button
           type="button"
-          className={`shrink-0 text-blue-100/55 hover:text-blue-100/80 ${
-            currentPage !== 'hobby' ? 'text-blue-100/90' : ''
-          } ${currentPage === 'poo' ? 'text-amber-200/80' : ''} ${currentPage === 'cursed' ? 'text-fuchsia-200/80' : ''}`}
+          className={`shrink-0 text-blue-100/55 hover:text-blue-100/80 ${pageColor}`}
           aria-label={`Change destination, currently ${currentPage}`}
           onClick={startEditing}
         >

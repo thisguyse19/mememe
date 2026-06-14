@@ -4,6 +4,7 @@ import { DuckPond } from './components/DuckPond'
 import { HobbyLanding } from './components/HobbyLanding'
 import { NavPill } from './components/NavPill'
 import { PooSimulation } from './components/PooSimulation'
+import { LobbyPage } from './components/LobbyPage'
 import { RidiculousPage } from './components/RidiculousPage'
 import { SecretPortal } from './components/SecretPortal'
 import type { NavPage } from './config/nav'
@@ -18,7 +19,9 @@ export default function App() {
         ? 'septic-drift'
         : navPage === 'cursed'
           ? 'cursed-drift'
-          : 'blue-drift'
+          : navPage === 'lobby'
+            ? 'lobby-drift'
+            : 'blue-drift'
 
   return (
     <div className={`relative min-h-dvh overflow-x-hidden ${bgClass}`}>
@@ -26,6 +29,7 @@ export default function App() {
         {navPage === 'duck' && <DuckPond key="pond" />}
         {navPage === 'poo' && <PooSimulation key="poo" />}
         {navPage === 'cursed' && <RidiculousPage key="cursed" />}
+        {navPage === 'lobby' && <LobbyPage key="lobby" />}
       </AnimatePresence>
 
       <nav

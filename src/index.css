@@ -93,6 +93,79 @@
       0 0 24px rgba(37, 99, 235, 0.2);
   }
 
+  .lobby-drift {
+    background-color: #121410;
+    background-image:
+      radial-gradient(ellipse 70% 45% at 50% 0%, rgba(163, 230, 53, 0.08), transparent 55%),
+      radial-gradient(ellipse 55% 35% at 0% 80%, rgba(120, 113, 108, 0.2), transparent 50%),
+      repeating-linear-gradient(
+        90deg,
+        transparent,
+        transparent 80px,
+        rgba(163, 230, 53, 0.015) 80px,
+        rgba(163, 230, 53, 0.015) 81px
+      ),
+      linear-gradient(180deg, #1a1c16 0%, #121410 50%, #0f100d 100%);
+    animation: lobby-hum 11s ease-in-out infinite alternate;
+  }
+
+  @keyframes lobby-hum {
+    0% {
+      filter: brightness(0.98);
+    }
+    100% {
+      filter: brightness(1.03);
+    }
+  }
+
+  .lobby-flicker {
+    animation: lobby-flicker 4.5s steps(1) infinite;
+  }
+
+  @keyframes lobby-flicker {
+    0%,
+    92%,
+    94%,
+    96%,
+    100% {
+      opacity: 1;
+    }
+    93%,
+    95% {
+      opacity: 0.94;
+    }
+  }
+
+  .lobby-card {
+    @apply rounded-2xl border border-lime-200/12 p-5;
+    background: linear-gradient(
+      145deg,
+      rgba(54, 65, 35, 0.15) 0%,
+      rgba(15, 16, 13, 0.78) 100%
+    );
+    backdrop-filter: blur(14px) saturate(110%);
+    -webkit-backdrop-filter: blur(14px) saturate(110%);
+    box-shadow:
+      0 1px 0 rgba(163, 230, 53, 0.05) inset,
+      0 12px 36px rgba(0, 0, 0, 0.32);
+  }
+
+  .lobby-card-title {
+    @apply text-sm font-medium tracking-tight text-lime-100/85;
+  }
+
+  .lobby-btn {
+    @apply rounded-full border border-lime-200/20 bg-lime-950/30 px-4 py-2 text-sm text-lime-50/85 transition hover:border-lime-200/35 hover:bg-lime-900/25 disabled:opacity-45;
+  }
+
+  .lobby-input {
+    @apply rounded-lg border border-lime-200/15 bg-black/25 px-3 py-2 text-sm text-lime-50/90 outline-none focus:border-lime-300/35;
+  }
+
+  .lobby-range {
+    @apply h-1.5 cursor-pointer appearance-none rounded-full bg-lime-950/70 accent-lime-400;
+  }
+
   .cursed-drift {
     background-color: #0a0612;
     background-image:

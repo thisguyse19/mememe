@@ -3,6 +3,7 @@ export const NAV_COMMANDS = {
   duck: 'duck',
   poo: 'poo',
   cursed: 'cursed',
+  lobby: 'lobby',
 } as const
 
 export type NavPage = (typeof NAV_COMMANDS)[keyof typeof NAV_COMMANDS]
