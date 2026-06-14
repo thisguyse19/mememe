@@ -93,6 +93,38 @@
       0 0 24px rgba(37, 99, 235, 0.2);
   }
 
+  .elevator-drift {
+    background-color: #0a0e14;
+    background-image:
+      radial-gradient(ellipse 80% 50% at 50% -15%, rgba(56, 189, 248, 0.12), transparent 55%),
+      radial-gradient(ellipse 50% 40% at 100% 80%, rgba(100, 116, 139, 0.15), transparent 50%),
+      linear-gradient(180deg, #111827 0%, #0a0e14 45%, #0f172a 100%);
+  }
+
+  .elev-card {
+    @apply rounded-2xl border border-slate-700/40 bg-slate-900/50 backdrop-blur-md;
+  }
+
+  .elev-tab {
+    @apply rounded-full border border-slate-600/40 bg-slate-900/40 px-3 py-1.5 text-xs text-slate-400 transition hover:border-slate-500/50 hover:text-slate-200;
+  }
+
+  .elev-tab--active {
+    @apply border-sky-500/40 bg-sky-950/40 text-sky-200;
+  }
+
+  .elev-btn {
+    @apply rounded-lg border border-slate-600/40 bg-slate-800/50 px-3 py-2 text-xs text-slate-200 transition hover:border-slate-500/60 hover:bg-slate-700/40;
+  }
+
+  .elev-input {
+    @apply rounded-lg border border-slate-600/40 bg-slate-950/60 px-3 py-2 text-sm text-slate-100 outline-none focus:border-sky-500/50;
+  }
+
+  .elev-floor-btn {
+    @apply rounded-lg border bg-black/20 py-2.5 text-sm font-medium transition hover:bg-black/35;
+  }
+
   .lobby-drift {
     background-color: #121410;
     background-image:

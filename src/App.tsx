@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { DuckPond } from './components/DuckPond'
+import { ElevatorSim } from './components/ElevatorSim'
 import { HobbyLanding } from './components/HobbyLanding'
 import { NavPill } from './components/NavPill'
 import { PooSimulation } from './components/PooSimulation'
@@ -21,7 +22,9 @@ export default function App() {
           ? 'cursed-drift'
           : navPage === 'lobby'
             ? 'lobby-drift'
-            : 'blue-drift'
+            : navPage === 'elevator'
+              ? 'elevator-drift'
+              : 'blue-drift'
 
   return (
     <div className={`relative min-h-dvh overflow-x-hidden ${bgClass}`}>
@@ -30,6 +33,7 @@ export default function App() {
         {navPage === 'poo' && <PooSimulation key="poo" />}
         {navPage === 'cursed' && <RidiculousPage key="cursed" />}
         {navPage === 'lobby' && <LobbyPage key="lobby" />}
+        {navPage === 'elevator' && <ElevatorSim key="elevator" />}
       </AnimatePresence>
 
       <nav

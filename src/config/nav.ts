@@ -4,6 +4,7 @@ export const NAV_COMMANDS = {
   poo: 'poo',
   cursed: 'cursed',
   lobby: 'lobby',
+  elevator: 'elevator',
 } as const
 
 export type NavPage = (typeof NAV_COMMANDS)[keyof typeof NAV_COMMANDS]

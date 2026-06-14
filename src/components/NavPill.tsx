@@ -77,7 +77,9 @@ export function NavPill({ currentPage, onNavigate }: NavPillProps) {
           ? 'ring-fuchsia-500/35'
           : currentPage === 'lobby'
             ? 'ring-lime-400/30'
-            : ''
+            : currentPage === 'elevator'
+              ? 'ring-sky-400/35'
+              : ''
 
   const pageColor =
     currentPage === 'poo'
@@ -86,7 +88,9 @@ export function NavPill({ currentPage, onNavigate }: NavPillProps) {
         ? 'text-fuchsia-200/80'
         : currentPage === 'lobby'
           ? 'text-lime-200/80'
-          : currentPage !== 'hobby'
+          : currentPage === 'elevator'
+            ? 'text-sky-200/80'
+            : currentPage !== 'hobby'
             ? 'text-blue-100/90'
             : ''
 
