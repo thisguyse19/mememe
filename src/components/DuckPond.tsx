@@ -7,6 +7,8 @@ const DRAG_LISTENER_OPTS = { capture: true, passive: false } as const
 type DuckBody = {
   x: number
   y: number
+  renderX: number
+  renderY: number
   vx: number
   vy: number
   angle: number
@@ -206,10 +208,16 @@ function drawWater(
   ctx.drawImage(offCtx.canvas, 0, 0, width, height)
 }
 
-function drawDuck(ctx: CanvasRenderingContext2D, duck: DuckBody, bob: number) {
+function drawDuck(
+  ctx: CanvasRenderingContext2D,
+  duck: DuckBody,
+  bob: number,
+  drawX = duck.renderX,
+  drawY = duck.renderY,
+) {
   const s = 34
-  const x = duck.x
-  const y = duck.y + bob
+  const x = drawX
+  const y = drawY + bob
 
   ctx.save()
   ctx.translate(x, y)
@@ -279,17 +287,73 @@ function drawDuck(ctx: CanvasRenderingContext2D, duck: DuckBody, bob: number) {
 
 function throwVelocity(samples: { x: number; y: number; t: number }[]) {
   if (samples.length < 2) return { vx: 0, vy: 0 }
-  const a = samples[samples.length - 1]
-  const b = samples[Math.max(0, samples.length - 4)]
-  // performance.now() is ms — convert to seconds for px/s
-  const dt = Math.max(0.008, (a.t - b.t) / 1000)
-  return { vx: (a.x - b.x) / dt, vy: (a.y - b.y) / dt }
+
+  const latest = samples[samples.length - 1]
+  const prev = samples[samples.length - 2]
+  const instantDt = Math.max(0.001, (latest.t - prev.t) / 1000)
+  const instantVx = (latest.x - prev.x) / instantDt
+  const instantVy = (latest.y - prev.y) / instantDt
+
+  const windowMs = 140
+  let sumVx = 0
+  let sumVy = 0
+  let sumW = 0
+  let peakVx = instantVx
+  let peakVy = instantVy
+  let peakSpeed = Math.hypot(instantVx, instantVy)
+
+  for (let i = samples.length - 1; i > 0; i--) {
+    const a = samples[i]
+    const b = samples[i - 1]
+    if (latest.t - a.t > windowMs) break
+
+    const segDt = Math.max(0.001, (a.t - b.t) / 1000)
+    const svx = (a.x - b.x) / segDt
+    const svy = (a.y - b.y) / segDt
+    const age = (latest.t - a.t) / windowMs
+    const weight = 1 - age * 0.65
+
+    sumVx += svx * weight
+    sumVy += svy * weight
+    sumW += weight
+
+    const speed = Math.hypot(svx, svy)
+    if (speed > peakSpeed) {
+      peakSpeed = speed
+      peakVx = svx
+      peakVy = svy
+    }
+  }
+
+  if (sumW === 0) return { vx: instantVx, vy: instantVy }
+
+  const avgVx = sumVx / sumW
+  const avgVy = sumVy / sumW
+
+  // Favor recent instantaneous speed for flicks; average stabilises slow releases.
+  const peakBlend = 0.5
+  const instantBlend = 0.35
+  const avgBlend = 1 - peakBlend - instantBlend
+
+  return {
+    vx: avgVx * avgBlend + instantVx * instantBlend + peakVx * peakBlend,
+    vy: avgVy * avgBlend + instantVy * instantBlend + peakVy * peakBlend,
+  }
 }
 
 export function DuckPond() {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const buffersRef = useRef(createWaterBuffers(GRID))
-  const duckRef = useRef<DuckBody>({ x: 0, y: 0, vx: 0, vy: 0, angle: 0, angularVel: 0 })
+  const duckRef = useRef<DuckBody>({
+    x: 0,
+    y: 0,
+    renderX: 0,
+    renderY: 0,
+    vx: 0,
+    vy: 0,
+    angle: 0,
+    angularVel: 0,
+  })
   const dragRef = useRef<DragState>({
     active: false,
     pointerX: 0,
@@ -304,13 +368,14 @@ export function DuckPond() {
   const rafRef = useRef(0)
   const timeRef = useRef(0)
   const wakeRef = useRef(0)
+  const bobRef = useRef(0)
 
   const DUCK_R = 36
   const HIT_R = 52
   const RESTITUTION = 0.62
-  const DRAG = 1.35
-  const MAX_SPEED = 920
-  const THROW_SCALE = 0.85
+  const DRAG = 1.15
+  const MAX_SPEED = 1100
+  const THROW_SCALE = 1
   const BOB_SCALE = 5
 
   useEffect(() => {
@@ -355,6 +420,8 @@ export function DuckPond() {
       if (duckRef.current.x === 0 && duckRef.current.y === 0) {
         duckRef.current.x = w * 0.5
         duckRef.current.y = h * 0.52
+        duckRef.current.renderX = duckRef.current.x
+        duckRef.current.renderY = duckRef.current.y
       }
     }
 
@@ -384,14 +451,16 @@ export function DuckPond() {
       disturb(buffersRef.current.current, GRID, px, py, w, h, radius, strength)
     }
 
-    const recordMotion = (x: number, y: number) => {
+    const recordMotion = (x: number, y: number, t = performance.now()) => {
       const drag = dragRef.current
-      const t = performance.now()
-      drag.motionSamples.push({ x, y, t })
-      if (drag.motionSamples.length > 16) drag.motionSamples.shift()
+      const samples = drag.motionSamples
+      const last = samples[samples.length - 1]
+      if (last && t - last.t < 4 && Math.hypot(x - last.x, y - last.y) < 0.25) return
+      samples.push({ x, y, t })
+      if (samples.length > 24) samples.shift()
     }
 
-    const syncDraggedDuck = () => {
+    const placeDuckAtPointer = () => {
       const drag = dragRef.current
       if (!drag.active) return
       const duck = duckRef.current
@@ -400,6 +469,8 @@ export function DuckPond() {
       const pos = clampDuck(drag.pointerX - drag.offsetX, drag.pointerY - drag.offsetY)
       duck.x = pos.x
       duck.y = pos.y
+      duck.renderX = pos.x
+      duck.renderY = pos.y
       recordMotion(duck.x, duck.y)
 
       const moveDist = Math.hypot(duck.x - prevX, duck.y - prevY)
@@ -452,6 +523,8 @@ export function DuckPond() {
       }
       duck.vx = 0
       duck.vy = 0
+      duck.renderX = duck.x
+      duck.renderY = duck.y
       addRipple(duck.x, duck.y, 22, 0.1, 0)
 
       document.addEventListener('pointermove', onPointerMoveWindow, DRAG_LISTENER_OPTS)
@@ -468,6 +541,7 @@ export function DuckPond() {
       const { x, y } = clientToCanvas(clientX, clientY)
       drag.pointerX = x
       drag.pointerY = y
+      placeDuckAtPointer()
       const { vx } = throwVelocity(drag.motionSamples)
       duckRef.current.angularVel = vx * 0.00025
     }
@@ -545,7 +619,7 @@ export function DuckPond() {
       ;[buf.current, buf.previous] = [buf.previous, buf.current]
 
       if (drag.active) {
-        syncDraggedDuck()
+        placeDuckAtPointer()
       } else {
         const dragFactor = Math.exp(-DRAG * dt)
         duck.vx *= dragFactor
@@ -590,12 +664,20 @@ export function DuckPond() {
           wakeRef.current = 0
           addRipple(duck.x, duck.y, 18, 0.05 + speed * 0.00008, 70)
         }
+
+        const renderFollow = 1 - Math.exp(-dt * 28)
+        duck.renderX += (duck.x - duck.renderX) * renderFollow
+        duck.renderY += (duck.y - duck.renderY) * renderFollow
       }
 
       drawWater(ctx, offCtx, buf.current, GRID, w, h, timeRef.current, waterCache, drag.active)
 
-      const bob = sampleHeight(buf.current, GRID, duck.x, duck.y, w, h) * BOB_SCALE
-      drawDuck(ctx, duck, bob)
+      const rawBob = drag.active
+        ? 0
+        : sampleHeight(buf.current, GRID, duck.x, duck.y, w, h) * BOB_SCALE
+      const bobFollow = drag.active ? 1 : 1 - Math.exp(-dt * 16)
+      bobRef.current += (rawBob - bobRef.current) * bobFollow
+      drawDuck(ctx, duck, bobRef.current)
 
       rafRef.current = requestAnimationFrame(tick)
     }
