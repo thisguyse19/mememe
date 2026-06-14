@@ -93,6 +93,47 @@
       0 0 24px rgba(37, 99, 235, 0.2);
   }
 
+  .nav-pill-input {
+    caret-color: transparent;
+  }
+
+  .console-cursor {
+    display: inline-block;
+    width: 0.55em;
+    height: 2px;
+    margin-bottom: 2px;
+    margin-left: 1px;
+    flex-shrink: 0;
+    background: #93c5fd;
+    box-shadow:
+      0 0 4px rgba(147, 197, 253, 0.95),
+      0 0 10px rgba(59, 130, 246, 0.55);
+    animation: console-cursor-glow 1.15s ease-in-out infinite;
+  }
+
+  .console-cursor--reject {
+    background: #fca5a5;
+    box-shadow:
+      0 0 4px rgba(252, 165, 165, 0.95),
+      0 0 10px rgba(248, 113, 113, 0.55);
+  }
+
+  @keyframes console-cursor-glow {
+    0%,
+    100% {
+      opacity: 0.45;
+      box-shadow:
+        0 0 3px rgba(147, 197, 253, 0.6),
+        0 0 8px rgba(59, 130, 246, 0.35);
+    }
+    50% {
+      opacity: 1;
+      box-shadow:
+        0 0 6px rgba(147, 197, 253, 1),
+        0 0 14px rgba(59, 130, 246, 0.65);
+    }
+  }
+
   .sr-only {
     position: absolute;
     width: 1px;
