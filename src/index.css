@@ -93,6 +93,59 @@
       0 0 24px rgba(37, 99, 235, 0.2);
   }
 
+  .cursed-drift {
+    background-color: #0a0612;
+    background-image:
+      radial-gradient(ellipse 90% 55% at 50% -10%, rgba(147, 51, 234, 0.28), transparent 55%),
+      radial-gradient(ellipse 50% 40% at 10% 90%, rgba(190, 24, 93, 0.18), transparent 50%),
+      radial-gradient(ellipse 45% 35% at 95% 40%, rgba(88, 28, 135, 0.22), transparent 45%),
+      linear-gradient(175deg, #120818 0%, #0a0612 45%, #140a10 100%);
+    animation: cursed-wobble 9s ease-in-out infinite alternate;
+  }
+
+  @keyframes cursed-wobble {
+    0% {
+      filter: brightness(0.97) hue-rotate(0deg);
+    }
+    100% {
+      filter: brightness(1.05) hue-rotate(12deg);
+    }
+  }
+
+  .cursed-card {
+    @apply rounded-2xl border border-fuchsia-500/15 p-5;
+    background: linear-gradient(
+      145deg,
+      rgba(88, 28, 135, 0.12) 0%,
+      rgba(10, 6, 18, 0.72) 100%
+    );
+    backdrop-filter: blur(16px) saturate(120%);
+    -webkit-backdrop-filter: blur(16px) saturate(120%);
+    box-shadow:
+      0 1px 0 rgba(217, 70, 239, 0.06) inset,
+      0 12px 40px rgba(0, 0, 0, 0.35);
+  }
+
+  .cursed-card-title {
+    @apply text-sm font-medium tracking-tight text-fuchsia-200/90;
+  }
+
+  .cursed-btn {
+    @apply rounded-full border border-fuchsia-400/25 bg-fuchsia-950/40 px-4 py-2 text-sm text-fuchsia-100/85 transition hover:border-fuchsia-300/40 hover:bg-fuchsia-900/35 disabled:opacity-45;
+  }
+
+  .cursed-btn--danger {
+    @apply border-rose-500/30 bg-rose-950/35 text-rose-100/85 hover:border-rose-400/45 hover:bg-rose-900/35;
+  }
+
+  .cursed-input {
+    @apply rounded-lg border border-fuchsia-500/20 bg-black/30 px-3 py-2 text-sm text-fuchsia-100/90 outline-none focus:border-fuchsia-400/40;
+  }
+
+  .cursed-range {
+    @apply h-1.5 cursor-pointer appearance-none rounded-full bg-fuchsia-950/80 accent-fuchsia-500;
+  }
+
   .septic-drift {
     background-color: #0f0a06;
     background-image:

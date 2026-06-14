@@ -4,6 +4,7 @@ import { DuckPond } from './components/DuckPond'
 import { HobbyLanding } from './components/HobbyLanding'
 import { NavPill } from './components/NavPill'
 import { PooSimulation } from './components/PooSimulation'
+import { RidiculousPage } from './components/RidiculousPage'
 import { SecretPortal } from './components/SecretPortal'
 import type { NavPage } from './config/nav'
 
@@ -11,13 +12,20 @@ export default function App() {
   const [navPage, setNavPage] = useState<NavPage>('hobby')
 
   const bgClass =
-    navPage === 'duck' ? '' : navPage === 'poo' ? 'septic-drift' : 'blue-drift'
+    navPage === 'duck'
+      ? ''
+      : navPage === 'poo'
+        ? 'septic-drift'
+        : navPage === 'cursed'
+          ? 'cursed-drift'
+          : 'blue-drift'
 
   return (
     <div className={`relative min-h-dvh overflow-x-hidden ${bgClass}`}>
       <AnimatePresence>
         {navPage === 'duck' && <DuckPond key="pond" />}
         {navPage === 'poo' && <PooSimulation key="poo" />}
+        {navPage === 'cursed' && <RidiculousPage key="cursed" />}
       </AnimatePresence>
 
       <nav
