@@ -575,6 +575,37 @@
     backdrop-filter: blur(12px);
   }
 
+  .void-range {
+    @apply h-1.5 cursor-pointer appearance-none rounded-full bg-white/10 accent-white/60;
+  }
+
+  .void-eye-twitch {
+    animation: void-twitch 0.12s ease-in-out;
+  }
+
+  @keyframes void-twitch {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.04) rotate(2deg); }
+  }
+
+  .void-glitch-title {
+    text-shadow: 0 0 20px rgba(255, 255, 255, 0.08);
+  }
+
+  .void-whisper {
+    text-shadow: 0 0 12px rgba(255, 255, 255, 0.15);
+  }
+
+  .void-btn--shaking {
+    animation: void-shake 0.15s ease-in-out infinite;
+  }
+
+  @keyframes void-shake {
+    0%, 100% { transform: translateX(0); }
+    25% { transform: translateX(-2px); }
+    75% { transform: translateX(2px); }
+  }
+
   .septic-drift {
     background-color: #0f0a06;
     background-image:
