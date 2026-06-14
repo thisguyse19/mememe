@@ -23,7 +23,8 @@ export function SecretPortal() {
   const [armed, setArmed] = useState(false)
   const [buffer, setBuffer] = useState('')
   const [wrong, setWrong] = useState(false)
-  const [success, setSuccess] = useState<{ href?: string } | null>(null)
+  const [success, setSuccess] = useState<{ label: string; href?: string } | null>(null)
+  const [postNoHref, setPostNoHref] = useState(false)
   const isMobile = useIsMobileUi()
 
   const pressTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -56,6 +57,7 @@ export function SecretPortal() {
     setBuffer('')
     setWrong(false)
     setSuccess(null)
+    setPostNoHref(false)
   }, [clearUnlockTimer])
 
   const updateBuffer = useCallback(
@@ -76,7 +78,8 @@ export function SecretPortal() {
 
       const entry = SECRET_DESTINATIONS[sanitized]
       if (entry) {
-        setSuccess({ href: entry.href })
+        setSuccess({ label: entry.label, href: entry.href })
+        setPostNoHref(false)
         return
       }
 
@@ -100,14 +103,14 @@ export function SecretPortal() {
       if (href) {
         window.location.assign(href)
       } else {
-        disarm()
+        setPostNoHref(true)
       }
     }, 1000)
 
     return () => {
       clearUnlockTimer()
     }
-  }, [success, clearUnlockTimer, disarm])
+  }, [success, clearUnlockTimer])
 
   useEffect(
     () => () => {
@@ -182,12 +185,8 @@ export function SecretPortal() {
     }
   }
 
-  const onTriggerPointerDown = (e: React.PointerEvent) => {
-    if (success) return
-    if (armed) {
-      disarm()
-      return
-    }
+  const onPointerDown = (e: React.PointerEvent) => {
+    if (armed || success) return
     startCoords.current = { x: e.clientX, y: e.clientY }
     clearPressTimer()
     pressTimer.current = window.setTimeout(() => {
@@ -196,8 +195,8 @@ export function SecretPortal() {
     }, LONG_PRESS_MS)
   }
 
-  const onTriggerPointerMove = (e: React.PointerEvent) => {
-    if (armed || !startCoords.current || !pressTimer.current) return
+  const onPointerMove = (e: React.PointerEvent) => {
+    if (!startCoords.current || !pressTimer.current) return
     const dx = e.clientX - startCoords.current.x
     const dy = e.clientY - startCoords.current.y
     if (dx * dx + dy * dy > MOVE_CANCEL_PX * MOVE_CANCEL_PX) {
@@ -206,7 +205,7 @@ export function SecretPortal() {
     }
   }
 
-  const endTriggerPointer = () => {
+  const endPointer = () => {
     clearPressTimer()
     startCoords.current = null
   }
@@ -225,18 +224,56 @@ export function SecretPortal() {
     <>
       <div
         className={`pointer-events-none fixed inset-0 z-10 transition-[box-shadow] duration-700 ${
-          armed ? 'shadow-[inset_0_0_120px_rgba(56,189,248,0.08)]' : ''
-        } ${success ? 'shadow-[inset_0_0_160px_rgba(99,102,241,0.14)]' : ''}`}
+          armed ? 'shadow-[inset_0_0_120px_rgba(37,99,235,0.1)]' : ''
+        }`}
         aria-hidden="true"
       />
 
       <div className="fixed bottom-6 left-0 right-0 z-30 flex flex-col items-center gap-3 px-4 pb-[env(safe-area-inset-bottom)]">
         <button
           type="button"
+          className={`glass-pill max-w-md rounded-2xl px-4 py-2.5 text-center text-[11px] leading-snug tracking-wide transition-opacity duration-500 sm:px-5 sm:text-xs ${
+            armed ? 'opacity-100' : 'pointer-events-none opacity-0'
+          } ${armed ? 'cursor-pointer text-blue-100/90 hover:bg-blue-950/40' : ''}`}
+          aria-live="polite"
+          onClick={() => {
+            if (armed) disarm()
+          }}
+        >
+          {!success && isMobile && 'Tap or click here to dismiss.'}
+          {!success && !isMobile && 'Press Escape to dismiss.'}
+          {success && (
+            <>
+              <span className="inline">
+                Bringing you to {success.label}
+                {!postNoHref && (
+                  <motion.span
+                    className="inline-block w-5 text-left"
+                    aria-hidden="true"
+                    animate={{ opacity: [0.35, 1, 0.35] }}
+                    transition={{ duration: 1.1, repeat: Infinity }}
+                  >
+                    …
+                  </motion.span>
+                )}
+              </span>
+              {!success.href && postNoHref && (
+                <span className="mt-2 block text-[10px] font-normal tracking-normal text-white/50 sm:text-[11px]">
+                  This destination is not wired to a URL yet.
+                </span>
+              )}
+            </>
+          )}
+        </button>
+
+        <button
+          type="button"
           className={`glass-pill relative overflow-hidden rounded-full px-5 py-3 transition-opacity duration-500 ${
             armed ? 'opacity-100' : 'pointer-events-none opacity-0'
           } ${wrong ? 'ring-1 ring-rose-300/45' : ''} ${success ? '' : 'active:scale-[0.99]'}`}
-          aria-label={isMobile ? 'Tap to type code' : 'Code entry'}
+          aria-label={
+            isMobile ? 'Tap to type your four-letter code' : 'Code entry indicator — type on your keyboard'
+          }
           onClick={() => {
             if (!armed || success) return
             if (isMobile) focusSecretInput()
@@ -244,7 +281,8 @@ export function SecretPortal() {
         >
           {success && (
             <motion.div
-              className="pointer-events-none absolute inset-0 origin-left rounded-full bg-gradient-to-r from-sky-400/45 via-indigo-400/35 to-violet-400/30"
+              key={success.label + (success.href ?? '')}
+              className="pointer-events-none absolute inset-0 origin-left rounded-full bg-gradient-to-r from-blue-500/40 via-blue-700/35 to-indigo-900/40"
               initial={{ scaleX: 0 }}
               animate={{ scaleX: 1 }}
               transition={{ duration: 1, ease: [0.22, 1, 0.36, 1] }}
@@ -259,7 +297,7 @@ export function SecretPortal() {
               <span
                 key={i}
                 className={`h-2 w-2 rounded-full transition-all duration-300 ${
-                  wrong ? 'bg-rose-300/95' : i < filled ? 'bg-sky-100/95 scale-110' : 'bg-white/35'
+                  wrong ? 'bg-rose-400/90' : i < filled ? 'bg-blue-200/95 scale-110' : 'bg-blue-200/25'
                 }`}
               />
             ))}
@@ -268,26 +306,26 @@ export function SecretPortal() {
 
         <button
           type="button"
-          className={`pointer-events-auto flex h-5 w-32 touch-none items-center justify-center rounded-full border border-white/10 bg-white/[0.04] transition-all select-none sm:w-40 ${
-            armed ? 'home-oracle-armed scale-[1.02] border-sky-300/40 bg-white/[0.08]' : 'hover:bg-white/[0.07]'
+          className={`pointer-events-auto flex h-5 w-32 touch-none items-center justify-center rounded-full border border-blue-400/10 bg-blue-950/20 transition-all select-none sm:w-40 ${
+            armed ? 'home-oracle-armed scale-[1.02] border-blue-400/35 bg-blue-950/30' : 'hover:bg-blue-950/25'
           }`}
-          aria-label={armed ? 'Tap to dismiss' : 'Hold to open'}
-          onPointerDown={onTriggerPointerDown}
-          onPointerMove={onTriggerPointerMove}
-          onPointerUp={endTriggerPointer}
-          onPointerCancel={endTriggerPointer}
-          onPointerLeave={endTriggerPointer}
+          aria-label="Hold to open a hidden channel"
+          onPointerDown={onPointerDown}
+          onPointerMove={onPointerMove}
+          onPointerUp={endPointer}
+          onPointerCancel={endPointer}
+          onPointerLeave={endPointer}
         >
           <span
             className={`h-1 rounded-full transition-all duration-500 ${
-              armed ? 'w-[72%] bg-sky-200/80' : 'w-[55%] bg-white/35'
+              armed ? 'w-[72%] bg-blue-300/80' : 'w-[55%] bg-blue-200/30'
             }`}
           />
         </button>
 
         {armed && (
           <label className="sr-only" htmlFor="secret-portal-input">
-            Code entry
+            Hidden passphrase field
           </label>
         )}
         <input
