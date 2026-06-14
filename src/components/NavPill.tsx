@@ -81,7 +81,9 @@ export function NavPill({ currentPage, onNavigate }: NavPillProps) {
               ? 'ring-sky-400/35'
               : currentPage === 'arcade'
                 ? 'ring-violet-400/35'
-                : ''
+                : currentPage === 'void'
+                  ? 'ring-white/20'
+                  : ''
 
   const pageColor =
     currentPage === 'poo'
@@ -94,7 +96,9 @@ export function NavPill({ currentPage, onNavigate }: NavPillProps) {
             ? 'text-sky-200/80'
             : currentPage === 'arcade'
               ? 'text-violet-200/80'
-              : currentPage !== 'hobby'
+              : currentPage === 'void'
+                ? 'text-white/55'
+                : currentPage !== 'hobby'
             ? 'text-blue-100/90'
             : ''
 

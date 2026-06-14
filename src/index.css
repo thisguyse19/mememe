@@ -488,6 +488,93 @@
     @apply min-w-[1.5rem] text-center text-lg font-bold text-amber-200;
   }
 
+  .void-drift {
+    background-color: #020204;
+    background-image:
+      radial-gradient(ellipse 70% 45% at 50% 20%, rgba(40, 40, 60, 0.15), transparent 55%),
+      radial-gradient(ellipse 40% 30% at 80% 80%, rgba(30, 20, 50, 0.12), transparent 50%),
+      linear-gradient(180deg, #030308 0%, #010102 50%, #000000 100%);
+    animation: void-breathe 14s ease-in-out infinite alternate;
+  }
+
+  @keyframes void-breathe {
+    0% {
+      filter: brightness(0.92);
+    }
+    100% {
+      filter: brightness(1.02);
+    }
+  }
+
+  .void-stars {
+    background-image:
+      radial-gradient(1px 1px at 10% 20%, rgba(255, 255, 255, 0.35), transparent),
+      radial-gradient(1px 1px at 30% 65%, rgba(255, 255, 255, 0.25), transparent),
+      radial-gradient(1px 1px at 55% 15%, rgba(255, 255, 255, 0.2), transparent),
+      radial-gradient(1px 1px at 70% 45%, rgba(255, 255, 255, 0.3), transparent),
+      radial-gradient(1px 1px at 85% 75%, rgba(255, 255, 255, 0.15), transparent),
+      radial-gradient(1px 1px at 15% 85%, rgba(255, 255, 255, 0.2), transparent),
+      radial-gradient(1px 1px at 45% 40%, rgba(255, 255, 255, 0.18), transparent),
+      radial-gradient(1px 1px at 92% 12%, rgba(255, 255, 255, 0.22), transparent);
+    opacity: 0.6;
+  }
+
+  .void-card {
+    @apply rounded-2xl border border-white/8 p-5;
+    background: linear-gradient(160deg, rgba(255, 255, 255, 0.03) 0%, rgba(0, 0, 0, 0.65) 100%);
+    backdrop-filter: blur(18px) saturate(80%);
+    -webkit-backdrop-filter: blur(18px) saturate(80%);
+    box-shadow: 0 1px 0 rgba(255, 255, 255, 0.04) inset;
+  }
+
+  .void-card-title {
+    @apply text-sm font-medium tracking-tight text-white/75;
+  }
+
+  .void-tab {
+    @apply rounded-full border border-white/10 bg-black/30 px-3 py-1.5 text-[11px] uppercase tracking-wide text-white/40 transition hover:border-white/20 hover:text-white/60;
+  }
+
+  .void-tab--active {
+    @apply border-white/25 bg-white/10 text-white/80;
+  }
+
+  .void-btn {
+    @apply rounded-lg border border-white/12 bg-white/5 px-3 py-2 text-sm text-white/65 transition hover:border-white/25 hover:bg-white/10;
+  }
+
+  .void-btn--primary {
+    @apply border-white/20 bg-white/10 text-white/85 hover:bg-white/15;
+  }
+
+  .void-btn--active {
+    @apply border-white/35 bg-white/15 text-white;
+  }
+
+  .void-btn--scream {
+    @apply border-rose-400/20 text-rose-100/80 hover:border-rose-300/35;
+  }
+
+  .void-btn--danger {
+    @apply border-rose-500/25 text-rose-200/70 hover:border-rose-400/40;
+  }
+
+  .void-input {
+    @apply rounded-lg border border-white/10 bg-black/40 px-3 py-2 text-sm text-white/80 outline-none placeholder:text-white/20 focus:border-white/25;
+  }
+
+  .void-scream-canvas {
+    background: radial-gradient(ellipse at center, #0a0812 0%, #020204 70%);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+  }
+
+  .void-toast {
+    background: rgba(0, 0, 0, 0.85);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 9999px;
+    backdrop-filter: blur(12px);
+  }
+
   .septic-drift {
     background-color: #0f0a06;
     background-image:

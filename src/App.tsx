@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
+import { VoidPage } from './components/VoidPage'
 import { ArcadePage } from './components/ArcadePage'
 import { DuckPond } from './components/DuckPond'
 import { ElevatorSim } from './components/ElevatorSim'
@@ -27,7 +28,9 @@ export default function App() {
               ? 'elevator-drift'
               : navPage === 'arcade'
                 ? 'arcade-drift'
-                : 'blue-drift'
+                : navPage === 'void'
+                  ? 'void-drift'
+                  : 'blue-drift'
 
   return (
     <div className={`relative min-h-dvh overflow-x-hidden ${bgClass}`}>
@@ -38,6 +41,7 @@ export default function App() {
         {navPage === 'lobby' && <LobbyPage key="lobby" />}
         {navPage === 'elevator' && <ElevatorSim key="elevator" />}
         {navPage === 'arcade' && <ArcadePage key="arcade" />}
+        {navPage === 'void' && <VoidPage key="void" />}
       </AnimatePresence>
 
       <nav
