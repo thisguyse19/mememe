@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useRef } from 'react'
+import { useEffect, useRef } from 'react'
 
-const GRID = 112
+const GRID = 96
 const DAMPING = 0.993
 
 type DuckBody = {
@@ -14,6 +14,8 @@ type DuckBody = {
 
 type DragState = {
   active: boolean
+  pointerX: number
+  pointerY: number
   offsetX: number
   offsetY: number
   samples: { x: number; y: number; t: number }[]
@@ -146,6 +148,12 @@ function waterShade(
   ]
 }
 
+type WaterRenderCache = {
+  rw: number
+  rh: number
+  image: ImageData | null
+}
+
 function drawWater(
   ctx: CanvasRenderingContext2D,
   offCtx: CanvasRenderingContext2D,
@@ -154,15 +162,24 @@ function drawWater(
   width: number,
   height: number,
   time: number,
+  cache: WaterRenderCache,
+  lite: boolean,
 ) {
-  const scale = 0.5
+  const scale = lite ? 0.38 : 0.46
   const rw = Math.max(1, Math.floor(width * scale))
   const rh = Math.max(1, Math.floor(height * scale))
-  offCtx.canvas.width = rw
-  offCtx.canvas.height = rh
-  const image = offCtx.createImageData(rw, rh)
+
+  if (cache.rw !== rw || cache.rh !== rh || !cache.image) {
+    cache.rw = rw
+    cache.rh = rh
+    offCtx.canvas.width = rw
+    offCtx.canvas.height = rh
+    cache.image = offCtx.createImageData(rw, rh)
+  }
+
+  const image = cache.image
   const data = image.data
-  const refract = 22
+  const refract = lite ? 14 : 20
 
   for (let py = 0; py < rh; py++) {
     for (let px = 0; px < rw; px++) {
@@ -170,19 +187,9 @@ function drawWater(
       const sy = (py / rh) * height
       const { nx, ny, h } = sampleNormal(field, size, sx, sy, width, height)
       const depth = sy / height
-
-      // refraction: sample shade from displaced coords for distorted-water look
       const dx = nx * (h * refract * 55 + 2.5)
       const dy = ny * (h * refract * 55 + 2.5)
-      const [r, g, b] = waterShade(
-        sx + dx,
-        sy + dy,
-        depth,
-        nx,
-        ny,
-        h,
-        time,
-      )
+      const [r, g, b] = waterShade(sx + dx, sy + dy, depth, nx, ny, h, time)
 
       const idx = (py * rw + px) * 4
       data[idx] = r
@@ -282,6 +289,8 @@ export function DuckPond() {
   const duckRef = useRef<DuckBody>({ x: 0, y: 0, vx: 0, vy: 0, angle: 0, angularVel: 0 })
   const dragRef = useRef<DragState>({
     active: false,
+    pointerX: 0,
+    pointerY: 0,
     offsetX: 0,
     offsetY: 0,
     samples: [],
@@ -291,38 +300,15 @@ export function DuckPond() {
   const rafRef = useRef(0)
   const timeRef = useRef(0)
   const wakeRef = useRef(0)
+  const prevDragPosRef = useRef({ x: 0, y: 0 })
 
   const DUCK_R = 36
+  const HIT_R = 52
   const RESTITUTION = 0.62
   const DRAG = 1.8
   const MAX_SPEED = 920
   const THROW_SCALE = 0.52
   const BOB_SCALE = 5
-
-  const pointerToCanvas = useCallback((clientX: number, clientY: number) => {
-    const canvas = canvasRef.current
-    if (!canvas) return { x: 0, y: 0 }
-    const rect = canvas.getBoundingClientRect()
-    return { x: clientX - rect.left, y: clientY - rect.top }
-  }, [])
-
-  const addRipple = useCallback(
-    (
-      px: number,
-      py: number,
-      radius: number,
-      strength: number,
-      minIntervalMs: number,
-      state: DragState,
-    ) => {
-      const now = performance.now()
-      if (minIntervalMs > 0 && now - state.lastRippleT < minIntervalMs) return
-      state.lastRippleT = now
-      const { w, h } = sizeRef.current
-      disturb(buffersRef.current.current, GRID, px, py, w, h, radius, strength)
-    },
-    [],
-  )
 
   useEffect(() => {
     const canvas = canvasRef.current
@@ -334,6 +320,21 @@ export function DuckPond() {
     const offCtx = offscreen.getContext('2d', { alpha: false })
     if (!offCtx) return
 
+    const waterCache: WaterRenderCache = { rw: 0, rh: 0, image: null }
+
+    const clientToCanvas = (clientX: number, clientY: number) => {
+      const rect = canvas.getBoundingClientRect()
+      return { x: clientX - rect.left, y: clientY - rect.top }
+    }
+
+    const clampDuck = (x: number, y: number) => {
+      const { w, h } = sizeRef.current
+      return {
+        x: Math.max(DUCK_R, Math.min(w - DUCK_R, x)),
+        y: Math.max(DUCK_R, Math.min(h - DUCK_R, y)),
+      }
+    }
+
     const resize = () => {
       const dpr = Math.min(window.devicePixelRatio || 1, 2)
       const w = window.innerWidth
@@ -344,6 +345,9 @@ export function DuckPond() {
       canvas.style.width = `${w}px`
       canvas.style.height = `${h}px`
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
+      waterCache.rw = 0
+      waterCache.rh = 0
+      waterCache.image = null
 
       if (duckRef.current.x === 0 && duckRef.current.y === 0) {
         duckRef.current.x = w * 0.5
@@ -361,6 +365,146 @@ export function DuckPond() {
     buffersRef.current.previous.set(current)
 
     window.addEventListener('resize', resize)
+
+    const addRipple = (
+      px: number,
+      py: number,
+      radius: number,
+      strength: number,
+      minIntervalMs: number,
+    ) => {
+      const state = dragRef.current
+      const now = performance.now()
+      if (minIntervalMs > 0 && now - state.lastRippleT < minIntervalMs) return
+      state.lastRippleT = now
+      const { w, h } = sizeRef.current
+      disturb(buffersRef.current.current, GRID, px, py, w, h, radius, strength)
+    }
+
+    const syncDraggedDuck = () => {
+      const drag = dragRef.current
+      if (!drag.active) return
+      const duck = duckRef.current
+      const prevX = duck.x
+      const prevY = duck.y
+      const pos = clampDuck(drag.pointerX - drag.offsetX, drag.pointerY - drag.offsetY)
+      duck.x = pos.x
+      duck.y = pos.y
+
+      const moveDist = Math.hypot(duck.x - prevX, duck.y - prevY)
+      if (moveDist > 0.5) {
+        addRipple(duck.x, duck.y, 20, 0.06 + moveDist * 0.004, 70)
+      }
+    }
+
+    const endDrag = () => {
+      const drag = dragRef.current
+      if (!drag.active) return
+      drag.active = false
+
+      const throwV = throwVelocity(drag.samples)
+      const capped = clampSpeed(throwV.vx * THROW_SCALE, throwV.vy * THROW_SCALE, MAX_SPEED)
+      duckRef.current.vx = capped.vx
+      duckRef.current.vy = capped.vy
+
+      addRipple(duckRef.current.x, duckRef.current.y, 30, 0.16, 0)
+      drag.samples = []
+
+      window.removeEventListener('pointermove', onPointerMoveWindow)
+      window.removeEventListener('pointerup', onPointerUpWindow)
+      window.removeEventListener('pointercancel', onPointerUpWindow)
+      window.removeEventListener('mousemove', onMouseMoveWindow)
+      window.removeEventListener('mouseup', onMouseUpWindow)
+    }
+
+    const beginDrag = (clientX: number, clientY: number) => {
+      const { x, y } = clientToCanvas(clientX, clientY)
+      const duck = duckRef.current
+      const dist = Math.hypot(x - duck.x, y - duck.y)
+      if (dist > HIT_R) return false
+
+      const t = performance.now()
+      dragRef.current = {
+        active: true,
+        pointerX: x,
+        pointerY: y,
+        offsetX: x - duck.x,
+        offsetY: y - duck.y,
+        samples: [{ x, y, t }],
+        lastRippleT: 0,
+      }
+      duck.vx = 0
+      duck.vy = 0
+      prevDragPosRef.current = { x: duck.x, y: duck.y }
+      addRipple(duck.x, duck.y, 22, 0.1, 0)
+
+      window.addEventListener('pointermove', onPointerMoveWindow)
+      window.addEventListener('pointerup', onPointerUpWindow)
+      window.addEventListener('pointercancel', onPointerUpWindow)
+      window.addEventListener('mousemove', onMouseMoveWindow)
+      window.addEventListener('mouseup', onMouseUpWindow)
+      return true
+    }
+
+    const recordPointer = (clientX: number, clientY: number) => {
+      const drag = dragRef.current
+      if (!drag.active) return
+      const { x, y } = clientToCanvas(clientX, clientY)
+      drag.pointerX = x
+      drag.pointerY = y
+      const t = performance.now()
+      drag.samples.push({ x, y, t })
+      if (drag.samples.length > 8) drag.samples.shift()
+      const { vx } = throwVelocity(drag.samples)
+      duckRef.current.angularVel = vx * 0.00025
+    }
+
+    const onPointerMoveWindow = (e: PointerEvent) => {
+      if (!dragRef.current.active) return
+      e.preventDefault()
+      recordPointer(e.clientX, e.clientY)
+    }
+
+    const onPointerUpWindow = (e: PointerEvent) => {
+      if (!dragRef.current.active) return
+      e.preventDefault()
+      try {
+        canvas.releasePointerCapture(e.pointerId)
+      } catch {
+        /* Safari may throw if capture was not set */
+      }
+      endDrag()
+    }
+
+    const onMouseMoveWindow = (e: MouseEvent) => {
+      if (!dragRef.current.active) return
+      e.preventDefault()
+      recordPointer(e.clientX, e.clientY)
+    }
+
+    const onMouseUpWindow = (e: MouseEvent) => {
+      if (!dragRef.current.active) return
+      e.preventDefault()
+      endDrag()
+    }
+
+    const onPointerDown = (e: PointerEvent) => {
+      if (e.button !== 0 && e.pointerType === 'mouse') return
+      const started = beginDrag(e.clientX, e.clientY)
+      if (!started) return
+      e.preventDefault()
+      try {
+        canvas.setPointerCapture(e.pointerId)
+      } catch {
+        /* fall back to window listeners */
+      }
+    }
+
+    const onMouseDown = (e: MouseEvent) => {
+      if (e.button !== 0 || dragRef.current.active) return
+      const started = beginDrag(e.clientX, e.clientY)
+      if (started) e.preventDefault()
+    }
 
     let lastFrame = performance.now()
 
@@ -384,7 +528,9 @@ export function DuckPond() {
       }
       ;[buf.current, buf.previous] = [buf.previous, buf.current]
 
-      if (!drag.active) {
+      if (drag.active) {
+        syncDraggedDuck()
+      } else {
         const dragFactor = Math.exp(-DRAG * dt)
         duck.vx *= dragFactor
         duck.vy *= dragFactor
@@ -416,9 +562,7 @@ export function DuckPond() {
           hitEdge = true
         }
 
-        if (hitEdge) {
-          addRipple(duck.x, duck.y, 26, 0.14, 60, drag)
-        }
+        if (hitEdge) addRipple(duck.x, duck.y, 26, 0.14, 60)
 
         duck.angularVel += (duck.vx * 0.00035 - duck.angle * 0.05) * dt * 60
         duck.angularVel *= Math.pow(0.9, dt * 60)
@@ -428,11 +572,11 @@ export function DuckPond() {
         wakeRef.current += dt
         if (speed > 40 && wakeRef.current > 0.07) {
           wakeRef.current = 0
-          addRipple(duck.x, duck.y, 18, 0.05 + speed * 0.00008, 70, drag)
+          addRipple(duck.x, duck.y, 18, 0.05 + speed * 0.00008, 70)
         }
       }
 
-      drawWater(ctx, offCtx, buf.current, GRID, w, h, timeRef.current)
+      drawWater(ctx, offCtx, buf.current, GRID, w, h, timeRef.current, waterCache, drag.active)
 
       const bob = sampleHeight(buf.current, GRID, duck.x, duck.y, w, h) * BOB_SCALE
       drawDuck(ctx, duck, bob)
@@ -442,92 +586,27 @@ export function DuckPond() {
 
     rafRef.current = requestAnimationFrame(tick)
 
-    const onPointerDown = (e: PointerEvent) => {
-      const { x, y } = pointerToCanvas(e.clientX, e.clientY)
-      const duck = duckRef.current
-      const { w, h } = sizeRef.current
-      const bob = sampleHeight(buffersRef.current.current, GRID, duck.x, duck.y, w, h) * BOB_SCALE
-      const dist = Math.hypot(x - duck.x, y - (duck.y + bob))
-      if (dist > DUCK_R * 1.5) return
-
-      canvas.setPointerCapture(e.pointerId)
-      const t = performance.now()
-      dragRef.current = {
-        active: true,
-        offsetX: x - duck.x,
-        offsetY: y - duck.y,
-        samples: [{ x, y, t }],
-        lastRippleT: 0,
-      }
-      duck.vx = 0
-      duck.vy = 0
-      addRipple(duck.x, duck.y, 22, 0.1, 0, dragRef.current)
-    }
-
-    const onPointerMove = (e: PointerEvent) => {
-      if (!dragRef.current.active) return
-      const { x, y } = pointerToCanvas(e.clientX, e.clientY)
-      const { w, h } = sizeRef.current
-      const duck = duckRef.current
-      const t = performance.now()
-
-      const prevX = duck.x
-      const prevY = duck.y
-
-      duck.x = Math.max(DUCK_R, Math.min(w - DUCK_R, x - dragRef.current.offsetX))
-      duck.y = Math.max(DUCK_R, Math.min(h - DUCK_R, y - dragRef.current.offsetY))
-
-      dragRef.current.samples.push({ x, y, t })
-      if (dragRef.current.samples.length > 8) {
-        dragRef.current.samples.shift()
-      }
-
-      const moveDist = Math.hypot(duck.x - prevX, duck.y - prevY)
-      if (moveDist > 0.5) {
-        addRipple(duck.x, duck.y, 20, 0.06 + moveDist * 0.004, 55, dragRef.current)
-      }
-
-      const { vx } = throwVelocity(dragRef.current.samples)
-      duck.angularVel = vx * 0.00025
-    }
-
-    const onPointerUp = (e: PointerEvent) => {
-      if (!dragRef.current.active) return
-      canvas.releasePointerCapture(e.pointerId)
-      dragRef.current.active = false
-
-      const throwV = throwVelocity(dragRef.current.samples)
-      const capped = clampSpeed(
-        throwV.vx * THROW_SCALE,
-        throwV.vy * THROW_SCALE,
-        MAX_SPEED,
-      )
-      duckRef.current.vx = capped.vx
-      duckRef.current.vy = capped.vy
-
-      addRipple(duckRef.current.x, duckRef.current.y, 30, 0.16, 0, dragRef.current)
-      dragRef.current.samples = []
-    }
-
     canvas.addEventListener('pointerdown', onPointerDown)
-    canvas.addEventListener('pointermove', onPointerMove)
-    canvas.addEventListener('pointerup', onPointerUp)
-    canvas.addEventListener('pointercancel', onPointerUp)
+    canvas.addEventListener('mousedown', onMouseDown)
 
     return () => {
       cancelAnimationFrame(rafRef.current)
       window.removeEventListener('resize', resize)
+      window.removeEventListener('pointermove', onPointerMoveWindow)
+      window.removeEventListener('pointerup', onPointerUpWindow)
+      window.removeEventListener('pointercancel', onPointerUpWindow)
+      window.removeEventListener('mousemove', onMouseMoveWindow)
+      window.removeEventListener('mouseup', onMouseUpWindow)
       canvas.removeEventListener('pointerdown', onPointerDown)
-      canvas.removeEventListener('pointermove', onPointerMove)
-      canvas.removeEventListener('pointerup', onPointerUp)
-      canvas.removeEventListener('pointercancel', onPointerUp)
+      canvas.removeEventListener('mousedown', onMouseDown)
     }
-  }, [pointerToCanvas, addRipple])
+  }, [])
 
   return (
     <canvas
       ref={canvasRef}
-      className="fixed inset-0 z-0 touch-none"
+      className="fixed inset-0 z-[5] cursor-grab active:cursor-grabbing"
+      style={{ touchAction: 'none' }}
       aria-label="Duck pond — drag the duck across the water"
     />
   )
