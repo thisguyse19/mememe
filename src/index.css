@@ -166,6 +166,105 @@
     @apply h-1.5 cursor-pointer appearance-none rounded-full bg-lime-950/70 accent-lime-400;
   }
 
+  .lobby-card--messy {
+    box-shadow:
+      0 1px 0 rgba(163, 230, 53, 0.04) inset,
+      0 12px 36px rgba(0, 0, 0, 0.32),
+      3px 4px 0 rgba(0, 0, 0, 0.15);
+  }
+
+  .lobby-btn--sm {
+    @apply px-2 text-xs;
+  }
+
+  .lobby-ticker-inner {
+    display: inline-block;
+    animation: lobby-ticker 28s linear infinite;
+  }
+
+  @keyframes lobby-ticker {
+    0% {
+      transform: translateX(0);
+    }
+    100% {
+      transform: translateX(-50%);
+    }
+  }
+
+  .lobby-toast {
+    @apply rounded-lg border px-3 py-2 text-[11px] leading-snug shadow-lg;
+    background: rgba(10, 12, 8, 0.92);
+  }
+
+  .lobby-toast--intercom {
+    border-color: rgba(163, 230, 53, 0.25);
+    color: rgba(217, 249, 157, 0.85);
+  }
+
+  .lobby-toast--cough {
+    border-color: rgba(251, 191, 36, 0.2);
+    color: rgba(254, 243, 199, 0.75);
+  }
+
+  .lobby-toast--phone {
+    border-color: rgba(96, 165, 250, 0.2);
+    color: rgba(191, 219, 254, 0.8);
+  }
+
+  .lobby-toast--jam {
+    border-color: rgba(248, 113, 113, 0.25);
+    color: rgba(254, 202, 202, 0.85);
+  }
+
+  .lobby-sticky {
+    @apply inline-block min-w-[4.5rem] max-w-[7rem] px-2 py-2 text-center text-[10px] font-medium leading-tight text-stone-800 shadow-md;
+    background: linear-gradient(145deg, #fef08a 0%, #fde047 100%);
+  }
+
+  .lobby-receipt {
+    @apply inline-block px-2 py-3 font-mono text-[8px] leading-tight text-stone-400 shadow;
+    background: #fafaf9;
+    width: 3.5rem;
+  }
+
+  .lobby-paper {
+    @apply inline-block max-w-[4rem] px-2 py-2 text-[9px] leading-tight text-stone-600 shadow;
+    background: #f5f5f4;
+    clip-path: polygon(0 0, 100% 4%, 98% 100%, 2% 96%);
+  }
+
+  .lobby-ticket-slip {
+    @apply inline-block border border-dashed border-stone-400 bg-[#fef3c7] px-2 py-1 font-mono text-[10px] text-stone-700 shadow-sm;
+  }
+
+  .lobby-coffee-ring {
+    @apply inline-block h-10 w-10 rounded-full border-[3px] border-amber-900/25;
+    background: radial-gradient(circle, transparent 55%, rgba(120, 53, 15, 0.12) 56%, rgba(120, 53, 15, 0.08) 100%);
+  }
+
+  .lobby-cup {
+    @apply inline-block text-xl drop-shadow;
+    filter: grayscale(0.2);
+  }
+
+  .lobby-fly {
+    animation: lobby-fly-buzz 0.35s ease-in-out infinite alternate;
+    cursor: crosshair;
+  }
+
+  @keyframes lobby-fly-buzz {
+    0% {
+      transform: translate(0, 0) rotate(-5deg);
+    }
+    100% {
+      transform: translate(2px, -3px) rotate(5deg);
+    }
+  }
+
+  .lobby-seat-gum {
+    box-shadow: inset 0 -3px 0 rgba(163, 230, 53, 0.15);
+  }
+
   .cursed-drift {
     background-color: #0a0612;
     background-image:
