@@ -19,9 +19,12 @@ import {
   stepSimulation,
   toggleDoor,
   triggerCrash,
+  setCarSpeed,
+  DEFAULT_CAR_SPEED,
   VIP_FLOOR,
 } from '../elevator/sim'
 import { CommuterExperience } from './PolarisDisplay'
+import { EZ_FLOORS } from '../elevator/ezFloors'
 import type {
   Assignment,
   CarId,
@@ -63,7 +66,7 @@ export function ElevatorSim() {
   const [assignment, setAssignment] = useState<Assignment | null>(null)
   const [lastDestination, setLastDestination] = useState<number | null>(null)
   const [assignTime, setAssignTime] = useState(0)
-  const [dopUi, setDopUi] = useState<DopUiMode>('grid')
+  const [dopUi, setDopUi] = useState<DopUiMode>('ez')
   const [skin, setSkin] = useState<ThemeSkin>('black')
   const [keypadVal, setKeypadVal] = useState('')
   const [pinVal, setPinVal] = useState('')
@@ -244,6 +247,8 @@ export function ElevatorSim() {
                 extendedDwell: !s.accessibility,
               }))
             }
+            onClearAssignment={() => setAssignment(null)}
+            onCarSpeedChange={(speed) => setState((s) => setCarSpeed(s, speed))}
             onEnterCar={(id) => {
               setState((s) => enterCab(s, id))
               setAssignment(null)
@@ -275,7 +280,7 @@ export function ElevatorSim() {
               </div>
 
               <div className="flex gap-1 border-b px-2 py-2" style={{ borderColor: theme.border }}>
-                {(['grid', 'keypad', 'directory'] as DopUiMode[]).map((m) => (
+                {(['ez', 'grid', 'keypad', 'directory'] as DopUiMode[]).map((m) => (
                   <button
                     key={m}
                     type="button"
@@ -292,6 +297,23 @@ export function ElevatorSim() {
               </div>
 
               <div className="p-4">
+                {dopUi === 'ez' && (
+                  <div className="grid grid-cols-2 gap-2">
+                    {EZ_FLOORS.map((z) => (
+                      <button
+                        key={z.floor}
+                        type="button"
+                        className="elev-floor-btn flex flex-col items-start py-2.5 text-left"
+                        style={{ borderColor: theme.border, color: theme.fg }}
+                        onClick={() => callFloor(z.floor)}
+                      >
+                        <span className="text-lg font-light">{z.label}</span>
+                        <span className="text-[10px] opacity-50">{z.sub}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+
                 {dopUi === 'grid' && (
                   <div className="grid max-h-64 grid-cols-5 gap-1.5 overflow-y-auto pr-1">
                     {FLOOR_DEFS.map((f) => (
@@ -709,6 +731,23 @@ export function ElevatorSim() {
               >
                 {state.fireService ? 'Clear fire service' : 'Activate fire service'}
               </button>
+            </div>
+
+            <div className="elev-card p-4">
+              <h3 className="text-xs font-medium text-slate-300">Travel speed</h3>
+              <p className="mt-1 text-[10px] text-slate-500">
+                {state.carSpeed.toFixed(2)} fl/s · default {DEFAULT_CAR_SPEED}
+              </p>
+              <input
+                type="range"
+                min={0.25}
+                max={5}
+                step={0.05}
+                value={state.carSpeed}
+                onChange={(e) => setState((s) => setCarSpeed(s, Number(e.target.value)))}
+                className="lobby-range mt-3 w-full"
+                aria-label="Elevator travel speed"
+              />
             </div>
 
             <div className="elev-card p-4">

@@ -19,14 +19,14 @@ import type {
 } from './types'
 import { CAR_IDS, FLOOR_DEFS, FLOOR_MAX, FLOOR_MIN, LOBBY_FLOOR, VIP_FLOOR } from './types'
 
-const CAR_SPEED = 1.35
+const DEFAULT_CAR_SPEED = 1.35
 const DOOR_CYCLE = 0.55
 const DOOR_OPEN = 1.8
 const DOOR_OPEN_A11Y = 3.2
 const CAPACITY = 12
 const CAR_COLORS: Record<CarId, string> = { A: '#f59e0b', B: '#22d3ee', C: '#fb7185', D: '#a3e635' }
 
-export { CAR_COLORS, CAPACITY }
+export { CAR_COLORS, CAPACITY, DEFAULT_CAR_SPEED }
 
 export function floorLabel(id: number): string {
   return FLOOR_DEFS.find((f) => f.id === id)?.label ?? String(id)
@@ -61,6 +61,7 @@ export function createInitialState(): SimState {
     vipUnlocked: false,
     fireService: false,
     crash: null,
+    carSpeed: DEFAULT_CAR_SPEED,
     logs: [{ id: 0, t: 0, kind: 'system', text: 'Group controller online. 4 cars, 68 floors (B2–65).' }],
     nextId: 1,
     activeCab: 'A',
@@ -96,7 +97,7 @@ function addStop(car: SimCar, floor: number) {
   car.stops = sortStops(car.stops, car.direction || (floor > car.floor ? 1 : -1), Math.round(car.floor))
 }
 
-function eta(car: SimCar, target: number): number {
+function eta(car: SimCar, target: number, carSpeed: number): number {
   const dist = Math.abs(target - car.floor)
   const stops = car.stops.filter((s) =>
     car.direction === 0
@@ -105,7 +106,7 @@ function eta(car: SimCar, target: number): number {
         ? s >= Math.floor(car.floor) && s <= target
         : s <= Math.ceil(car.floor) && s >= target,
   ).length
-  return dist / CAR_SPEED + stops * (DOOR_CYCLE * 2 + DOOR_OPEN) + (car.door !== 'closed' ? 1 : 0)
+  return dist / carSpeed + stops * (DOOR_CYCLE * 2 + DOOR_OPEN) + (car.door !== 'closed' ? 1 : 0)
 }
 
 export function dispatchAssign(state: SimState, req: LobbyRequest): Assignment {
@@ -119,8 +120,8 @@ export function dispatchAssign(state: SimState, req: LobbyRequest): Assignment {
     const load = car.riders.length / CAPACITY
     if (load >= 1) continue
 
-    const pickupEta = eta(car, req.from)
-    const tripEta = eta({ ...car, floor: req.from }, req.to)
+    const pickupEta = eta(car, req.from, state.carSpeed)
+    const tripEta = eta({ ...car, floor: req.from }, req.to, state.carSpeed)
     let score = pickupEta + tripEta
 
     const sameZone = car.riders.some((r) => zoneOf(r.to) === zoneOf(req.to))
@@ -272,6 +273,13 @@ export function setTraffic(state: SimState, traffic: TrafficMode): SimState {
   return next
 }
 
+export function setCarSpeed(state: SimState, speed: number): SimState {
+  const next = structuredClone(state) as SimState
+  next.carSpeed = Math.max(0.25, Math.min(5, speed))
+  log(next, 'system', `Travel speed: ${next.carSpeed.toFixed(2)} floors/sec`)
+  return next
+}
+
 export function brandLabel(brand: SystemBrand): string {
   switch (brand) {
     case 'compass360':
@@ -349,8 +357,8 @@ function stepCrash(state: SimState, dt: number) {
 
   if (crash.phase === 0) {
     car.direction = 1
-    car.speed = 4.5
-    car.floor += dt * 6
+    car.speed = state.carSpeed * 3
+    car.floor += dt * state.carSpeed * 4.5
     crash.spinFloor = car.floor
     if (crash.phaseT >= CRASH_PHASE_DUR[0]) {
       crash.phase = 1
@@ -470,8 +478,8 @@ export function stepSimulation(state: SimState, dt: number): SimState {
     }
 
     car.direction = diff > 0 ? 1 : -1
-    car.speed = CAR_SPEED
-    car.floor += car.direction * CAR_SPEED * dt
+    car.speed = next.carSpeed
+    car.floor += car.direction * next.carSpeed * dt
     car.floor = Math.max(FLOOR_MIN, Math.min(FLOOR_MAX, car.floor))
   }
 

@@ -1,6 +1,7 @@
 import { motion, AnimatePresence } from 'framer-motion'
 import { useEffect, useRef, useState } from 'react'
 import { CAR_COLORS, floorLabel, FLOOR_DEFS, FLOOR_MAX, VIP_FLOOR } from '../elevator/sim'
+import { EZ_FLOORS } from '../elevator/ezFloors'
 import type { Assignment, CarId, CrashState, SimCar, SimState } from '../elevator/types'
 
 type PolarisLobbyProps = {
@@ -11,6 +12,7 @@ type PolarisLobbyProps = {
   waitElapsed: number
   onSelectFloor: (floor: number) => void
   onToggleAccessibility: () => void
+  onClearAssignment: () => void
   error?: string | null
 }
 
@@ -22,12 +24,25 @@ export function PolarisLobbyGuidance({
   waitElapsed,
   onSelectFloor,
   onToggleAccessibility,
+  onClearAssignment,
   error,
 }: PolarisLobbyProps) {
   const isPolaris = brand === 'polaris' || brand === 'hybrid'
   const [touchActive, setTouchActive] = useState(false)
-  const [dopMode, setDopMode] = useState<'grid' | 'keypad'>('grid')
+  const [dopMode, setDopMode] = useState<'ez' | 'grid' | 'keypad'>('ez')
   const [keypadVal, setKeypadVal] = useState('')
+  const dismissRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  useEffect(() => {
+    if (!assignment) return
+    dismissRef.current = window.setTimeout(() => {
+      onClearAssignment()
+      setTouchActive(true)
+    }, 5000)
+    return () => {
+      if (dismissRef.current) window.clearTimeout(dismissRef.current)
+    }
+  }, [assignment, onClearAssignment])
 
   const submitKeypad = () => {
     const n = parseInt(keypadVal, 10)
@@ -79,11 +94,11 @@ export function PolarisLobbyGuidance({
                 exit={{ opacity: 0 }}
               >
                 <div className="mb-3 flex gap-1">
-                  {(['grid', 'keypad'] as const).map((m) => (
+                  {(['ez', 'grid', 'keypad'] as const).map((m) => (
                     <button
                       key={m}
                       type="button"
-                      className={`flex-1 rounded py-1.5 text-[11px] capitalize ${dopMode === m ? 'bg-white text-black' : 'bg-white/10 text-white/70'}`}
+                      className={`flex-1 rounded py-1.5 text-[11px] uppercase tracking-wide ${dopMode === m ? 'bg-white text-black' : 'bg-white/10 text-white/70'}`}
                       onClick={() => setDopMode(m)}
                     >
                       {m}
@@ -91,7 +106,21 @@ export function PolarisLobbyGuidance({
                   ))}
                 </div>
 
-                {dopMode === 'grid' ? (
+                {dopMode === 'ez' ? (
+                  <div className="grid grid-cols-2 gap-2">
+                    {EZ_FLOORS.map((z) => (
+                      <button
+                        key={z.floor}
+                        type="button"
+                        className={`flex flex-col items-start rounded-lg border px-3 py-2.5 text-left transition hover:bg-white/10 active:scale-[0.98] ${z.floor === VIP_FLOOR ? 'border-amber-400/35' : 'border-white/15'}`}
+                        onClick={() => onSelectFloor(z.floor)}
+                      >
+                        <span className="text-lg font-light tabular-nums text-white">{z.label}</span>
+                        <span className="text-[10px] text-white/45">{z.sub}</span>
+                      </button>
+                    ))}
+                  </div>
+                ) : dopMode === 'grid' ? (
                   <div className="grid max-h-52 grid-cols-5 gap-1.5 overflow-y-auto pr-1">
                     {FLOOR_DEFS.map((f) => (
                       <button
@@ -189,7 +218,7 @@ export function PolarisLobbyGuidance({
                     />
                   </div>
                   <p className="mt-2 text-[10px] text-white/40">
-                    Arriving · ~{Math.max(0, assignment.waitSec - waitElapsed)}s
+                    Arriving · ~{Math.max(0, assignment.waitSec - waitElapsed)}s · panel resets in 5s
                   </p>
                 </div>
 
@@ -408,6 +437,8 @@ type CommuterViewProps = {
   error?: string | null
   onSelectFloor: (floor: number) => void
   onToggleAccessibility: () => void
+  onClearAssignment: () => void
+  onCarSpeedChange: (speed: number) => void
   onEnterCar: (id: CarId) => void
   onCrash: (id: CarId) => void
 }
@@ -420,6 +451,8 @@ export function CommuterExperience({
   error,
   onSelectFloor,
   onToggleAccessibility,
+  onClearAssignment,
+  onCarSpeedChange,
   onEnterCar,
   onCrash,
 }: CommuterViewProps) {
@@ -448,6 +481,7 @@ export function CommuterExperience({
           waitElapsed={waitElapsed}
           onSelectFloor={onSelectFloor}
           onToggleAccessibility={onToggleAccessibility}
+          onClearAssignment={onClearAssignment}
           error={error}
         />
       </div>
@@ -482,8 +516,35 @@ export function CommuterExperience({
         </div>
       </div>
 
-      {/* Hall lanterns row */}
+      {/* Speed + hall lanterns */}
       <div className="lg:col-span-2">
+        <div className="elev-card mb-4 p-4">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h3 className="text-xs font-medium text-slate-300">Elevator speed</h3>
+              <p className="text-[10px] text-slate-500">{state.carSpeed.toFixed(2)} floors/sec</p>
+            </div>
+            <span className="text-[10px] text-slate-500">
+              {state.carSpeed < 0.8 ? '🐢 Leisurely' : state.carSpeed > 2.5 ? '🚀 Ludicrous' : 'Normal'}
+            </span>
+          </div>
+          <input
+            type="range"
+            min={0.25}
+            max={5}
+            step={0.05}
+            value={state.carSpeed}
+            onChange={(e) => onCarSpeedChange(Number(e.target.value))}
+            className="elev-range mt-3 w-full"
+            aria-label="Elevator travel speed"
+          />
+          <div className="mt-1 flex justify-between text-[9px] text-slate-600">
+            <span>0.25</span>
+            <span>1.35 default</span>
+            <span>5.0</span>
+          </div>
+        </div>
+
         <p className="mb-3 text-center text-[10px] uppercase tracking-[0.35em] text-slate-500">Hall lanterns</p>
         <div className="flex flex-wrap justify-center gap-4">
           {(['A', 'B', 'C', 'D'] as CarId[]).map((id) => {

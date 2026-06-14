@@ -32,7 +32,7 @@ export const FLOOR_MAX = VIP_FLOOR
 export type SystemBrand = 'compass360' | 'polaris' | 'hybrid' | 'collective'
 export type DoorState = 'closed' | 'opening' | 'open' | 'closing'
 export type TrafficMode = 'light' | 'normal' | 'peak'
-export type DopUiMode = 'grid' | 'keypad' | 'directory'
+export type DopUiMode = 'ez' | 'grid' | 'keypad' | 'directory'
 export type ThemeSkin = 'black' | 'white' | 'silver' | 'gold'
 
 export type Rider = {
@@ -95,6 +95,7 @@ export type SimState = {
   vipUnlocked: boolean
   fireService: boolean
   crash: CrashState | null
+  carSpeed: number
   logs: SimLog[]
   nextId: number
   activeCab: CarId
