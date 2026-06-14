@@ -1,5 +1,7 @@
 import { motion, AnimatePresence, useMotionValue, useSpring } from 'framer-motion'
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { ApplePayTitheSheet } from './ApplePayTitheSheet'
+import { tryApplePayTithe } from '../lib/applePayTithe'
 
 const VOID_REPLIES = [
   '',
@@ -430,6 +432,7 @@ export function VoidPage() {
   const [glitchTitle, setGlitchTitle] = useState('The Void™')
   const [voidDice, setVoidDice] = useState<number | null>(null)
   const [summonedGary, setSummonedGary] = useState(false)
+  const [paySheetAmount, setPaySheetAmount] = useState<number | null>(null)
   const ticketId = useRef(1000)
   const shakeX = useMotionValue(0)
 
@@ -587,6 +590,31 @@ export function VoidPage() {
     showToast(pick(HR_DENIALS))
     setPtoReason('')
   }
+
+  const completeTithe = useCallback(
+    (n: number) => {
+      setTithe((t) => t + n)
+      setDread((d) => Math.min(100, d + 3))
+      showToast(`$${n} tithed. The void burped. Gary got 10%.`)
+    },
+    [showToast],
+  )
+
+  const startTithe = useCallback(
+    async (n: number) => {
+      const result = await tryApplePayTithe({ amount: n, label: `Void cult tithe ($${n})` })
+      if (result === 'paid') {
+        completeTithe(n)
+        return
+      }
+      if (result === 'cancelled') {
+        showToast('Apple Pay cancelled. The void respects boundaries.')
+        return
+      }
+      setPaySheetAmount(n)
+    },
+    [completeTithe, showToast],
+  )
 
   const TABS: { id: Tab; label: string }[] = [
     { id: 'portal', label: 'Portal' },
@@ -927,11 +955,19 @@ export function VoidPage() {
               <p className="mt-1 text-xs text-white/40">Tithe · chant · bingo · Gary</p>
 
               <div className="mt-4 rounded-xl border border-white/8 bg-black/30 p-4">
-                <p className="text-sm text-white/60">Tithe to the void: <span className="text-amber-200/90">${tithe.toFixed(2)}</span></p>
+                <div className="flex items-center justify-between gap-2">
+                  <p className="text-sm text-white/60">
+                    Tithe to the void: <span className="text-amber-200/90">${tithe.toFixed(2)}</span>
+                  </p>
+                  <span className="inline-flex items-center gap-1 rounded-full bg-white/10 px-2 py-0.5 text-[10px] font-medium text-white/70">
+                    <ApplePayBadge /> Pay
+                  </span>
+                </div>
+                <p className="mt-1 text-[10px] text-white/30">Tapping a tier opens Apple Pay (or a very convincing fake).</p>
                 <div className="mt-2 flex gap-2">
                   {[1, 5, 20, 666].map((n) => (
-                    <button key={n} type="button" className="void-btn flex-1 text-xs" onClick={() => { setTithe((t) => t + n); showToast(`$${n} vanished. The void burped.`) }}>
-                      +${n}
+                    <button key={n} type="button" className="void-btn flex-1 text-xs" onClick={() => startTithe(n)}>
+                      ${n}
                     </button>
                   ))}
                 </div>
@@ -1052,6 +1088,21 @@ export function VoidPage() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      <ApplePayTitheSheet
+        open={paySheetAmount !== null}
+        amount={paySheetAmount ?? 0}
+        onClose={() => setPaySheetAmount(null)}
+        onPaid={completeTithe}
+      />
     </motion.main>
+  )
+}
+
+function ApplePayBadge() {
+  return (
+    <svg viewBox="0 0 814 1000" className="h-3 w-3 fill-white" aria-hidden="true">
+      <path d="M788.1 340.9c-5.8 4.5-108.2 62.2-108.2 190.5 0 148.4 130.3 200.9 134.2 202.2-.6 3.2-20.7 71.9-68.7 141.9-42.8 61.6-87.5 123.1-155.5 123.1s-85.5-39.5-163-39.5c-76.5 0-103.7 40.8-165.9 40.8s-109.5-57-155.5-127.5C46 791.2 0 663.5 0 541.3c0-194.4 126.4-297.5 250.8-297.5 66.1 0 121.2 43.4 162.7 43.4 39.5 0 101.1-46 176.3-46 28.2 0 129.2 2.6 196 98.7zM554.1 82.4c31.1-36.9 53.1-88.1 53.1-139.3 0-7.1-.6-14.3-1.9-20.1-50.6 1.9-110.8 33.7-147.1 75.8-28.2 32.4-54.4 83.9-54.4 135.5 0 7.8 1.3 15.6 1.9 18.1 3.2.6 8.4 1.3 13.6 1.3 45.4 0 102.5-30.4 135.8-71.3z" />
+    </svg>
   )
 }
