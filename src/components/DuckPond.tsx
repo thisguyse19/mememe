@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react'
 
 const GRID = 96
 const DAMPING = 0.993
+const DRAG_LISTENER_OPTS = { capture: true, passive: false } as const
 
 type DuckBody = {
   x: number
@@ -18,8 +19,9 @@ type DragState = {
   pointerY: number
   offsetX: number
   offsetY: number
-  samples: { x: number; y: number; t: number }[]
+  motionSamples: { x: number; y: number; t: number }[]
   lastRippleT: number
+  input: 'mouse' | 'touch' | null
 }
 
 function createWaterBuffers(size: number) {
@@ -279,7 +281,8 @@ function throwVelocity(samples: { x: number; y: number; t: number }[]) {
   if (samples.length < 2) return { vx: 0, vy: 0 }
   const a = samples[samples.length - 1]
   const b = samples[Math.max(0, samples.length - 4)]
-  const dt = Math.max(0.008, a.t - b.t)
+  // performance.now() is ms — convert to seconds for px/s
+  const dt = Math.max(0.008, (a.t - b.t) / 1000)
   return { vx: (a.x - b.x) / dt, vy: (a.y - b.y) / dt }
 }
 
@@ -293,21 +296,21 @@ export function DuckPond() {
     pointerY: 0,
     offsetX: 0,
     offsetY: 0,
-    samples: [],
+    motionSamples: [],
     lastRippleT: 0,
+    input: null,
   })
   const sizeRef = useRef({ w: 0, h: 0 })
   const rafRef = useRef(0)
   const timeRef = useRef(0)
   const wakeRef = useRef(0)
-  const prevDragPosRef = useRef({ x: 0, y: 0 })
 
   const DUCK_R = 36
   const HIT_R = 52
   const RESTITUTION = 0.62
-  const DRAG = 1.8
+  const DRAG = 1.35
   const MAX_SPEED = 920
-  const THROW_SCALE = 0.52
+  const THROW_SCALE = 0.85
   const BOB_SCALE = 5
 
   useEffect(() => {
@@ -381,6 +384,13 @@ export function DuckPond() {
       disturb(buffersRef.current.current, GRID, px, py, w, h, radius, strength)
     }
 
+    const recordMotion = (x: number, y: number) => {
+      const drag = dragRef.current
+      const t = performance.now()
+      drag.motionSamples.push({ x, y, t })
+      if (drag.motionSamples.length > 16) drag.motionSamples.shift()
+    }
+
     const syncDraggedDuck = () => {
       const drag = dragRef.current
       if (!drag.active) return
@@ -390,6 +400,7 @@ export function DuckPond() {
       const pos = clampDuck(drag.pointerX - drag.offsetX, drag.pointerY - drag.offsetY)
       duck.x = pos.x
       duck.y = pos.y
+      recordMotion(duck.x, duck.y)
 
       const moveDist = Math.hypot(duck.x - prevX, duck.y - prevY)
       if (moveDist > 0.5) {
@@ -397,27 +408,32 @@ export function DuckPond() {
       }
     }
 
+    const removeDragListeners = () => {
+      document.removeEventListener('pointermove', onPointerMoveWindow, DRAG_LISTENER_OPTS)
+      document.removeEventListener('pointerup', onPointerUpWindow, DRAG_LISTENER_OPTS)
+      document.removeEventListener('pointercancel', onPointerUpWindow, DRAG_LISTENER_OPTS)
+      document.removeEventListener('mousemove', onMouseMoveWindow, DRAG_LISTENER_OPTS)
+      document.removeEventListener('mouseup', onMouseUpWindow, DRAG_LISTENER_OPTS)
+    }
+
     const endDrag = () => {
       const drag = dragRef.current
       if (!drag.active) return
       drag.active = false
 
-      const throwV = throwVelocity(drag.samples)
+      const throwV = throwVelocity(drag.motionSamples)
       const capped = clampSpeed(throwV.vx * THROW_SCALE, throwV.vy * THROW_SCALE, MAX_SPEED)
       duckRef.current.vx = capped.vx
       duckRef.current.vy = capped.vy
 
       addRipple(duckRef.current.x, duckRef.current.y, 30, 0.16, 0)
-      drag.samples = []
+      drag.motionSamples = []
+      drag.input = null
 
-      window.removeEventListener('pointermove', onPointerMoveWindow)
-      window.removeEventListener('pointerup', onPointerUpWindow)
-      window.removeEventListener('pointercancel', onPointerUpWindow)
-      window.removeEventListener('mousemove', onMouseMoveWindow)
-      window.removeEventListener('mouseup', onMouseUpWindow)
+      removeDragListeners()
     }
 
-    const beginDrag = (clientX: number, clientY: number) => {
+    const beginDrag = (clientX: number, clientY: number, input: 'mouse' | 'touch') => {
       const { x, y } = clientToCanvas(clientX, clientY)
       const duck = duckRef.current
       const dist = Math.hypot(x - duck.x, y - duck.y)
@@ -430,19 +446,19 @@ export function DuckPond() {
         pointerY: y,
         offsetX: x - duck.x,
         offsetY: y - duck.y,
-        samples: [{ x, y, t }],
+        motionSamples: [{ x: duck.x, y: duck.y, t }],
         lastRippleT: 0,
+        input,
       }
       duck.vx = 0
       duck.vy = 0
-      prevDragPosRef.current = { x: duck.x, y: duck.y }
       addRipple(duck.x, duck.y, 22, 0.1, 0)
 
-      window.addEventListener('pointermove', onPointerMoveWindow)
-      window.addEventListener('pointerup', onPointerUpWindow)
-      window.addEventListener('pointercancel', onPointerUpWindow)
-      window.addEventListener('mousemove', onMouseMoveWindow)
-      window.addEventListener('mouseup', onMouseUpWindow)
+      document.addEventListener('pointermove', onPointerMoveWindow, DRAG_LISTENER_OPTS)
+      document.addEventListener('pointerup', onPointerUpWindow, DRAG_LISTENER_OPTS)
+      document.addEventListener('pointercancel', onPointerUpWindow, DRAG_LISTENER_OPTS)
+      document.addEventListener('mousemove', onMouseMoveWindow, DRAG_LISTENER_OPTS)
+      document.addEventListener('mouseup', onMouseUpWindow, DRAG_LISTENER_OPTS)
       return true
     }
 
@@ -452,21 +468,18 @@ export function DuckPond() {
       const { x, y } = clientToCanvas(clientX, clientY)
       drag.pointerX = x
       drag.pointerY = y
-      const t = performance.now()
-      drag.samples.push({ x, y, t })
-      if (drag.samples.length > 8) drag.samples.shift()
-      const { vx } = throwVelocity(drag.samples)
+      const { vx } = throwVelocity(drag.motionSamples)
       duckRef.current.angularVel = vx * 0.00025
     }
 
     const onPointerMoveWindow = (e: PointerEvent) => {
-      if (!dragRef.current.active) return
+      if (!dragRef.current.active || dragRef.current.input === 'mouse') return
       e.preventDefault()
       recordPointer(e.clientX, e.clientY)
     }
 
     const onPointerUpWindow = (e: PointerEvent) => {
-      if (!dragRef.current.active) return
+      if (!dragRef.current.active || dragRef.current.input === 'mouse') return
       e.preventDefault()
       try {
         canvas.releasePointerCapture(e.pointerId)
@@ -477,32 +490,35 @@ export function DuckPond() {
     }
 
     const onMouseMoveWindow = (e: MouseEvent) => {
-      if (!dragRef.current.active) return
+      if (!dragRef.current.active || dragRef.current.input !== 'mouse') return
       e.preventDefault()
       recordPointer(e.clientX, e.clientY)
     }
 
     const onMouseUpWindow = (e: MouseEvent) => {
-      if (!dragRef.current.active) return
+      if (!dragRef.current.active || dragRef.current.input !== 'mouse') return
       e.preventDefault()
       endDrag()
     }
 
     const onPointerDown = (e: PointerEvent) => {
-      if (e.button !== 0 && e.pointerType === 'mouse') return
-      const started = beginDrag(e.clientX, e.clientY)
+      // Safari macOS: route mouse through mousedown/mousemove/mouseup — pointerup
+      // often fires first with no pointermove samples, killing throw velocity.
+      if (e.pointerType === 'mouse') return
+      if (e.button !== 0) return
+      const started = beginDrag(e.clientX, e.clientY, 'touch')
       if (!started) return
       e.preventDefault()
       try {
         canvas.setPointerCapture(e.pointerId)
       } catch {
-        /* fall back to window listeners */
+        /* fall back to document listeners */
       }
     }
 
     const onMouseDown = (e: MouseEvent) => {
       if (e.button !== 0 || dragRef.current.active) return
-      const started = beginDrag(e.clientX, e.clientY)
+      const started = beginDrag(e.clientX, e.clientY, 'mouse')
       if (started) e.preventDefault()
     }
 
@@ -592,11 +608,7 @@ export function DuckPond() {
     return () => {
       cancelAnimationFrame(rafRef.current)
       window.removeEventListener('resize', resize)
-      window.removeEventListener('pointermove', onPointerMoveWindow)
-      window.removeEventListener('pointerup', onPointerUpWindow)
-      window.removeEventListener('pointercancel', onPointerUpWindow)
-      window.removeEventListener('mousemove', onMouseMoveWindow)
-      window.removeEventListener('mouseup', onMouseUpWindow)
+      removeDragListeners()
       canvas.removeEventListener('pointerdown', onPointerDown)
       canvas.removeEventListener('mousedown', onMouseDown)
     }
