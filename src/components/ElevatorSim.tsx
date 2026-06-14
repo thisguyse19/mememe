@@ -11,13 +11,17 @@ import {
   exitCab,
   floorLabel,
   FLOOR_DEFS,
+  FLOOR_MAX,
   LOBBY_FLOOR,
   requestDestination,
   setBrand,
   setTraffic,
   stepSimulation,
   toggleDoor,
+  triggerCrash,
+  VIP_FLOOR,
 } from '../elevator/sim'
+import { CommuterExperience } from './PolarisDisplay'
 import type {
   Assignment,
   CarId,
@@ -32,13 +36,13 @@ import { CAR_IDS } from '../elevator/types'
 const DIRECTORY = [
   { floor: 0, name: 'Lobby & Reception' },
   { floor: 1, name: 'Café / Food Court' },
-  { floor: 3, name: 'WeWork-ish Desks' },
   { floor: 5, name: 'HR (Good Luck)' },
-  { floor: 8, name: 'Legal — Enter at Own Risk' },
-  { floor: 12, name: 'Server Room (Hot)' },
-  { floor: 16, name: 'Executive Swag' },
-  { floor: 20, name: 'Observatory' },
-  { floor: 25, name: 'Penthouse VIP' },
+  { floor: 12, name: 'WeWork-ish Desks' },
+  { floor: 20, name: 'Legal — Enter at Own Risk' },
+  { floor: 28, name: 'Server Room (Hot)' },
+  { floor: 40, name: 'Executive Swag' },
+  { floor: 55, name: 'Sky Lounge' },
+  { floor: VIP_FLOOR, name: 'Penthouse VIP' },
   { floor: -1, name: 'Parking B1' },
   { floor: -2, name: 'Parking B2' },
 ]
@@ -50,13 +54,15 @@ const SKINS: Record<ThemeSkin, { bg: string; fg: string; accent: string; border:
   gold: { bg: '#1c1917', fg: '#fef3c7', accent: '#fbbf24', border: 'rgba(251,191,36,0.2)' },
 }
 
-type Panel = 'lobby' | 'cab' | 'admin' | 'remote'
+type Panel = 'ride' | 'lobby' | 'cab' | 'admin' | 'remote'
 
 export function ElevatorSim() {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const [state, setState] = useState<SimState>(() => createInitialState())
-  const [panel, setPanel] = useState<Panel>('lobby')
+  const [panel, setPanel] = useState<Panel>('ride')
   const [assignment, setAssignment] = useState<Assignment | null>(null)
+  const [lastDestination, setLastDestination] = useState<number | null>(null)
+  const [assignTime, setAssignTime] = useState(0)
   const [dopUi, setDopUi] = useState<DopUiMode>('grid')
   const [skin, setSkin] = useState<ThemeSkin>('black')
   const [keypadVal, setKeypadVal] = useState('')
@@ -102,29 +108,36 @@ export function ElevatorSim() {
     return () => window.clearInterval(id)
   }, [state, assignment?.car])
 
+  const waitElapsed = assignment ? Math.max(0, Math.floor(state.simTime - assignTime)) : 0
+
   const callFloor = useCallback(
     (to: number, from = LOBBY_FLOOR) => {
       setErrMsg(null)
+      setLastDestination(to)
       setState((s) => {
-        const res = requestDestination(s, from, to, { accessible: s.accessibility, vip: to === 25 })
+        const res = requestDestination(s, from, to, { accessible: s.accessibility, vip: to === VIP_FLOOR })
         if (res.error) {
           setErrMsg(res.error)
           return s
         }
-        if (res.assignment) setAssignment(res.assignment)
+        if (res.assignment) {
+          setAssignment(res.assignment)
+          setAssignTime(s.simTime)
+        }
         return res.state
       })
+      setPanel('ride')
     },
     [],
   )
 
   const submitKeypad = useCallback(() => {
     const n = parseInt(keypadVal, 10)
-    if (keypadVal === 'PH' || keypadVal === '25') {
-      callFloor(25)
+    if (keypadVal === 'PH' || keypadVal === String(VIP_FLOOR)) {
+      callFloor(VIP_FLOOR)
     } else if (keypadVal === 'B1') callFloor(-1)
     else if (keypadVal === 'B2') callFloor(-2)
-    else if (!Number.isNaN(n) && n >= FLOOR_DEFS[0].id && n <= 25) callFloor(n)
+    else if (!Number.isNaN(n) && n >= FLOOR_DEFS[0].id && n <= FLOOR_MAX) callFloor(n)
     else setErrMsg('Invalid floor')
     setKeypadVal('')
   }, [callFloor, keypadVal])
@@ -132,7 +145,7 @@ export function ElevatorSim() {
   const submitPin = useCallback(() => {
     if (pinVal === '7777') {
       setState((s) => ({ ...s, vipUnlocked: true }))
-      setVipMsg('VIP access granted — PH unlocked')
+      setVipMsg(`VIP access granted — floor ${VIP_FLOOR} unlocked`)
       setPinVal('')
     } else {
       setVipMsg('Access denied')
@@ -196,17 +209,39 @@ export function ElevatorSim() {
 
         {/* Panel tabs */}
         <div className="mb-4 flex flex-wrap gap-2">
-          {(['lobby', 'cab', 'remote', 'admin'] as Panel[]).map((p) => (
+          {(['ride', 'lobby', 'cab', 'remote', 'admin'] as Panel[]).map((p) => (
             <button
               key={p}
               type="button"
               className={`elev-tab ${panel === p ? 'elev-tab--active' : ''}`}
               onClick={() => setPanel(p)}
             >
-              {p === 'lobby' ? 'DOP / Lobby' : p === 'cab' ? 'Inside Cab' : p === 'remote' ? 'RemoteCall' : 'Building Ops'}
+              {p === 'ride'
+                ? 'Commuter View'
+                : p === 'lobby'
+                  ? 'DOP / Lobby'
+                  : p === 'cab'
+                    ? 'Inside Cab'
+                    : p === 'remote'
+                      ? 'RemoteCall'
+                      : 'Building Ops'}
             </button>
           ))}
         </div>
+
+        {panel === 'ride' && (
+          <CommuterExperience
+            state={state}
+            assignment={assignment}
+            destination={lastDestination}
+            waitElapsed={waitElapsed}
+            onEnterCar={(id) => {
+              setState((s) => enterCab(s, id))
+              setAssignment(null)
+            }}
+            onCrash={(id) => setState((s) => triggerCrash(s, id))}
+          />
+        )}
 
         {panel === 'lobby' && (
           <div className="grid gap-4 lg:grid-cols-[1fr_280px]">
@@ -249,12 +284,12 @@ export function ElevatorSim() {
 
               <div className="p-4">
                 {dopUi === 'grid' && (
-                  <div className="grid grid-cols-4 gap-2">
+                  <div className="grid max-h-64 grid-cols-5 gap-1.5 overflow-y-auto pr-1">
                     {FLOOR_DEFS.map((f) => (
                       <button
                         key={f.id}
                         type="button"
-                        className="elev-floor-btn"
+                        className="elev-floor-btn py-2 text-xs"
                         style={{ borderColor: theme.border, color: theme.fg }}
                         onClick={() => callFloor(f.id)}
                       >
@@ -474,7 +509,7 @@ export function ElevatorSim() {
                 </div>
               )}
 
-              <div className="mt-4 grid grid-cols-4 gap-2">
+              <div className="mt-4 grid max-h-48 grid-cols-6 gap-1.5 overflow-y-auto">
                 {FLOOR_DEFS.map((f) => (
                   <button
                     key={f.id}
@@ -582,14 +617,18 @@ export function ElevatorSim() {
             <button
               type="button"
               className="elev-btn mt-4 w-full py-3"
-              onClick={() => {
-                setState((s) => {
-                  const res = requestDestination(s, remoteFrom, remoteTo)
-                  if (res.assignment) setAssignment(res.assignment)
-                  return res.state
-                })
-                setPanel('lobby')
-              }}
+                onClick={() => {
+                  setState((s) => {
+                    const res = requestDestination(s, remoteFrom, remoteTo)
+                    if (res.assignment) {
+                      setAssignment(res.assignment)
+                      setAssignTime(s.simTime)
+                      setLastDestination(remoteTo)
+                    }
+                    return res.state
+                  })
+                  setPanel('ride')
+                }}
             >
               📱 Call elevator
             </button>
@@ -666,7 +705,7 @@ export function ElevatorSim() {
             <div className="elev-card p-4">
               <h3 className="text-xs font-medium text-slate-300">SuperGroup™ bridge</h3>
               <p className="mt-2 text-[10px] text-slate-500">
-                Cars A+B serve low zone (B2–8), C+D high (9–PH). Cross-zone requests auto-bridge via Car B↔C handoff (simulated).
+                Cars A+B low zone (B2–15), C+D high (16–65). Cross-zone handoff simulated.
               </p>
             </div>
           </div>

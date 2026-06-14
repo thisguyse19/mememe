@@ -3,6 +3,7 @@ export {
   FLOOR_MAX,
   FLOOR_MIN,
   LOBBY_FLOOR,
+  VIP_FLOOR,
   CAR_IDS,
 } from './types'
 
@@ -16,7 +17,7 @@ import type {
   SystemBrand,
   TrafficMode,
 } from './types'
-import { CAR_IDS, FLOOR_DEFS, FLOOR_MAX, FLOOR_MIN, LOBBY_FLOOR } from './types'
+import { CAR_IDS, FLOOR_DEFS, FLOOR_MAX, FLOOR_MIN, LOBBY_FLOOR, VIP_FLOOR } from './types'
 
 const CAR_SPEED = 1.35
 const DOOR_CYCLE = 0.55
@@ -39,7 +40,7 @@ export function createInitialState(): SimState {
   return {
     cars: CAR_IDS.map((id) => ({
       id,
-      floor: id === 'A' ? 0 : id === 'B' ? 3 : id === 'C' ? 8 : 14,
+      floor: id === 'A' ? 0 : id === 'B' ? 12 : id === 'C' ? 35 : 52,
       direction: 0,
       speed: 0,
       door: 'closed',
@@ -59,7 +60,8 @@ export function createInitialState(): SimState {
     extendedDwell: false,
     vipUnlocked: false,
     fireService: false,
-    logs: [{ id: 0, t: 0, kind: 'system', text: 'Group controller online. 4 cars, 27 floors.' }],
+    crash: null,
+    logs: [{ id: 0, t: 0, kind: 'system', text: 'Group controller online. 4 cars, 68 floors (B2–65).' }],
     nextId: 1,
     activeCab: 'A',
     insideCar: null,
@@ -160,8 +162,8 @@ export function requestDestination(
 ): { state: SimState; assignment?: Assignment; error?: string } {
   const next = structuredClone(state) as SimState
   if (from === to) return { state: next, error: 'Already on this floor' }
-  if (to === 25 && !next.vipUnlocked && from === LOBBY_FLOOR) {
-    return { state: next, error: 'PH requires VIP credential (PIN 7777)' }
+  if (to === VIP_FLOOR && !next.vipUnlocked && from === LOBBY_FLOOR) {
+    return { state: next, error: `Floor ${VIP_FLOOR} requires VIP credential (PIN 7777)` }
   }
   if (next.fireService) return { state: next, error: 'Fire service active — lobby dispatch disabled' }
 
@@ -313,9 +315,98 @@ function nextStop(car: SimCar): number | null {
   return sorted[0] ?? null
 }
 
+export function triggerCrash(state: SimState, carId: CarId): SimState {
+  const next = structuredClone(state) as SimState
+  if (next.crash?.active) return next
+  const car = next.cars.find((c) => c.id === carId)!
+  car.mode = 'crash'
+  car.stops = []
+  car.speed = 0
+  car.door = 'closed'
+  car.direction = 0
+  next.crash = {
+    active: true,
+    car: carId,
+    phase: 0,
+    phaseT: 0,
+    stuckFloor: Math.round(car.floor),
+    spinFloor: car.floor,
+    message: 'That was not in the brochure.',
+  }
+  next.activeCab = carId
+  if (next.insideCar === null) next.insideCar = carId
+  log(next, 'voice', `⚠ Car ${carId} — an unexpected adventure begins`)
+  return next
+}
+
+const CRASH_PHASE_DUR = [1.2, 1.4, 1.0, 2.2, 1.5, 2.0]
+
+function stepCrash(state: SimState, dt: number) {
+  const crash = state.crash
+  if (!crash?.active) return
+  const car = state.cars.find((c) => c.id === crash.car)!
+  crash.phaseT += dt
+
+  if (crash.phase === 0) {
+    car.direction = 1
+    car.speed = 4.5
+    car.floor += dt * 6
+    crash.spinFloor = car.floor
+    if (crash.phaseT >= CRASH_PHASE_DUR[0]) {
+      crash.phase = 1
+      crash.phaseT = 0
+      crash.message = 'Gravity has entered the chat.'
+    }
+  } else if (crash.phase === 1) {
+    car.floor += dt * (crash.phaseT < 0.5 ? 8 : -12)
+    crash.spinFloor = car.floor + Math.sin(state.simTime * 40) * 3
+    if (crash.phaseT >= CRASH_PHASE_DUR[1]) {
+      crash.phase = 2
+      crash.phaseT = 0
+      car.floor = crash.stuckFloor + 0.47
+      car.speed = 0
+      crash.message = 'We appear to have found a shortcut.'
+    }
+  } else if (crash.phase === 2) {
+    car.floor = crash.stuckFloor + 0.47 + Math.sin(state.simTime * 3) * 0.02
+    if (crash.phaseT >= CRASH_PHASE_DUR[2]) {
+      crash.phase = 3
+      crash.phaseT = 0
+      crash.message = 'Elevator music intensifies.'
+    }
+  } else if (crash.phase === 3) {
+    if (crash.phaseT >= CRASH_PHASE_DUR[3]) {
+      crash.phase = 4
+      crash.phaseT = 0
+      crash.message = 'Running diagnostics (lying)...'
+    }
+  } else if (crash.phase === 4) {
+    if (crash.phaseT >= CRASH_PHASE_DUR[4]) {
+      crash.phase = 5
+      crash.phaseT = 0
+      car.floor = crash.stuckFloor
+      car.mode = 'auto'
+      car.door = 'opening'
+      car.doorT = 0
+      crash.message = 'All systems nominal. Somehow.'
+    }
+  } else if (crash.phase === 5) {
+    if (crash.phaseT >= CRASH_PHASE_DUR[5]) {
+      const carId = crash.car
+      state.crash = null
+      log(state, 'voice', `Car ${carId} recovered. Please pretend nothing happened.`)
+    }
+  }
+}
+
 export function stepSimulation(state: SimState, dt: number): SimState {
   const next = structuredClone(state) as SimState
   next.simTime += dt
+
+  if (next.crash?.active) {
+    stepCrash(next, dt)
+    return next
+  }
 
   if (next.fireService) {
     for (const car of next.cars) {
@@ -433,24 +524,34 @@ export function drawShaft(
 
   for (const f of FLOOR_DEFS) {
     const y = floorY(f.id)
-    ctx.strokeStyle = f.id === LOBBY_FLOOR ? 'rgba(96,165,250,0.35)' : 'rgba(255,255,255,0.06)'
+    const major = f.id === LOBBY_FLOOR || f.id === VIP_FLOOR || f.id % 10 === 0 || f.id <= 0
+    ctx.strokeStyle = f.id === LOBBY_FLOOR ? 'rgba(96,165,250,0.35)' : major ? 'rgba(255,255,255,0.09)' : 'rgba(255,255,255,0.03)'
     ctx.lineWidth = f.id === LOBBY_FLOOR ? 1.5 : 1
     ctx.beginPath()
     ctx.moveTo(pad, y)
     ctx.lineTo(w - pad, y)
     ctx.stroke()
-    ctx.fillStyle = 'rgba(148,163,184,0.55)'
-    ctx.font = '10px ui-monospace, monospace'
-    ctx.textAlign = 'right'
-    ctx.fillText(f.label, pad - 6, y + 3)
+    const showLabel = f.id <= 0 || f.id === VIP_FLOOR || f.id % 5 === 0
+    if (showLabel) {
+      ctx.fillStyle = 'rgba(148,163,184,0.55)'
+      ctx.font = '9px ui-monospace, monospace'
+      ctx.textAlign = 'right'
+      ctx.fillText(f.label, pad - 6, y + 3)
+    }
   }
 
   CAR_IDS.forEach((id, i) => {
     const car = state.cars.find((c) => c.id === id)!
+    const crashed = state.crash?.active && state.crash.car === id
     const x = pad + i * colW + colW * 0.12
     const cw = colW * 0.76
-    const ch = shaftH / (FLOOR_MAX - FLOOR_MIN + 2) * 1.6
+    const ch = (shaftH / (FLOOR_MAX - FLOOR_MIN + 2)) * 1.2
     const cy = floorY(car.floor) - ch / 2
+
+    if (crashed) {
+      ctx.save()
+      ctx.translate((Math.random() - 0.5) * 6, (Math.random() - 0.5) * 4)
+    }
 
     ctx.fillStyle = 'rgba(255,255,255,0.03)'
     ctx.fillRect(x, shaftTop, cw, shaftH)
@@ -477,6 +578,7 @@ export function drawShaft(
       ctx.font = '10px system-ui'
       ctx.fillText(car.direction > 0 ? '▲' : '▼', x + cw / 2, cy - 4)
     }
+    if (crashed) ctx.restore()
   })
 }
 

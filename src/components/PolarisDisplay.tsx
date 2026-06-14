@@ -1,0 +1,407 @@
+import { motion, AnimatePresence } from 'framer-motion'
+import { useEffect, useRef, useState } from 'react'
+import { CAR_COLORS, floorLabel } from '../elevator/sim'
+import type { Assignment, CarId, CrashState, SimCar, SimState } from '../elevator/types'
+
+type PolarisLobbyProps = {
+  assignment: Assignment | null
+  destination: number | null
+  brand: SimState['brand']
+  accessibility: boolean
+  waitElapsed: number
+}
+
+export function PolarisLobbyGuidance({
+  assignment,
+  destination,
+  brand,
+  accessibility,
+  waitElapsed,
+}: PolarisLobbyProps) {
+  const isPolaris = brand === 'polaris' || brand === 'hybrid'
+
+  return (
+    <div className="polaris-fixture mx-auto w-full max-w-sm overflow-hidden rounded-sm shadow-2xl">
+      <div className="polaris-fixture-bezel p-1">
+        <div className="polaris-screen relative min-h-[320px] bg-[#0a0a0a] px-6 py-8 text-white">
+          <div className="flex items-center justify-between border-b border-white/10 pb-3">
+            <span className="text-[10px] font-semibold uppercase tracking-[0.35em] text-white/45">
+              {isPolaris ? 'KONE' : 'Otis'}
+            </span>
+            <span className="text-[10px] text-white/35">{isPolaris ? 'Polaris' : 'Compass 360'}</span>
+          </div>
+
+          <AnimatePresence mode="wait">
+            {!assignment ? (
+              <motion.div
+                key="idle"
+                className="flex min-h-[240px] flex-col items-center justify-center text-center"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+              >
+                <motion.div
+                  className="h-16 w-16 rounded-full border-2 border-white/15"
+                  animate={{ scale: [1, 1.06, 1], opacity: [0.4, 0.7, 0.4] }}
+                  transition={{ duration: 2.4, repeat: Infinity }}
+                />
+                <p className="mt-6 text-sm font-light tracking-wide text-white/70">Select your destination</p>
+                <p className="mt-2 text-[11px] text-white/35">Touch panel to begin</p>
+              </motion.div>
+            ) : (
+              <motion.div
+                key="assigned"
+                className="flex min-h-[240px] flex-col items-center justify-center text-center"
+                initial={{ opacity: 0, scale: 0.96 }}
+                animate={{ opacity: 1, scale: 1 }}
+              >
+                <p className="text-xs uppercase tracking-[0.4em] text-white/50">Proceed to elevator</p>
+
+                <motion.div
+                  className="relative my-6 flex h-32 w-32 items-center justify-center rounded-full border-4"
+                  style={{ borderColor: CAR_COLORS[assignment.car], boxShadow: `0 0 40px ${CAR_COLORS[assignment.car]}44` }}
+                  initial={{ scale: 0.5, rotate: -8 }}
+                  animate={{ scale: 1, rotate: 0 }}
+                  transition={{ type: 'spring', stiffness: 260, damping: 18 }}
+                >
+                  <motion.span
+                    className="text-6xl font-semibold tabular-nums"
+                    style={{ color: CAR_COLORS[assignment.car] }}
+                    animate={{ scale: [1, 1.04, 1] }}
+                    transition={{ duration: 1.8, repeat: Infinity }}
+                  >
+                    {assignment.car}
+                  </motion.span>
+                  <motion.span
+                    className="absolute -right-2 -top-2 text-2xl"
+                    animate={{ x: assignment.arrow === 'left' ? [-4, 0, -4] : [4, 0, 4] }}
+                    transition={{ duration: 1.2, repeat: Infinity }}
+                  >
+                    {assignment.arrow === 'left' ? '←' : '→'}
+                  </motion.span>
+                </motion.div>
+
+                {destination !== null && (
+                  <p className="text-lg font-light text-white/85">
+                    Destination · <span className="font-medium">{floorLabel(destination)}</span>
+                  </p>
+                )}
+
+                <div className="mt-5 w-full max-w-[200px]">
+                  <div className="h-0.5 overflow-hidden rounded-full bg-white/10">
+                    <motion.div
+                      className="h-full bg-white/70"
+                      initial={{ width: '0%' }}
+                      animate={{ width: `${Math.min(100, (waitElapsed / assignment.waitSec) * 100)}%` }}
+                    />
+                  </div>
+                  <p className="mt-2 text-[10px] text-white/40">
+                    Arriving · ~{Math.max(0, assignment.waitSec - waitElapsed)}s
+                  </p>
+                </div>
+
+                {accessibility && (
+                  <motion.p
+                    className="mt-4 text-[11px] text-emerald-300/80"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                  >
+                    ♿ Audio: Elevator {assignment.car}. Extended door time.
+                  </motion.p>
+                )}
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          <div className="absolute bottom-4 left-0 right-0 text-center text-[9px] uppercase tracking-widest text-white/20">
+            mememe tower
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+type PolarisCarProps = {
+  car: SimCar
+  crash: CrashState | null
+  brand: SimState['brand']
+  riderDest?: number | null
+}
+
+export function PolarisCarDisplay({ car, crash, brand, riderDest }: PolarisCarProps) {
+  const displayFloor = crash?.active ? Math.floor(crash.spinFloor) : Math.round(car.floor)
+  const prevFloor = useRef(displayFloor)
+  const [tick, setTick] = useState(0)
+  const goingUp = crash?.active ? crash.phase < 2 : car.direction > 0
+  const goingDown = crash?.active ? crash.phase >= 2 && crash.phase < 3 : car.direction < 0
+  const isPolaris = brand === 'polaris' || brand === 'hybrid'
+
+  useEffect(() => {
+    if (displayFloor !== prevFloor.current) {
+      prevFloor.current = displayFloor
+      setTick((t) => t + 1)
+    }
+  }, [displayFloor])
+
+  const doorLabel =
+    car.door === 'open' ? 'DOORS OPEN' : car.door === 'closing' ? 'CLOSING' : car.door === 'opening' ? 'OPENING' : '●'
+
+  return (
+    <div className="polaris-fixture mx-auto w-full max-w-[280px]">
+      <div className="polaris-fixture-bezel p-1.5">
+        <div
+          className={`polaris-screen relative overflow-hidden bg-[#050505] ${crash?.active && crash.car === car.id ? 'polaris-crash-shake' : ''}`}
+        >
+          {/* Header strip */}
+          <div className="flex items-center justify-between border-b border-white/10 px-4 py-2">
+            <span className="text-[9px] font-bold uppercase tracking-[0.3em] text-white/40">
+              {isPolaris ? 'KONE' : 'OTIS'}
+            </span>
+            <span className="text-[9px] text-white/30">Car {car.id}</span>
+          </div>
+
+          {/* Main floor readout — classic dot-matrix / LED style */}
+          <div className="relative px-4 py-6">
+            <AnimatePresence mode="wait">
+              {crash?.active && crash.car === car.id ? (
+                <CrashReadout key="crash" crash={crash} />
+              ) : (
+                <motion.div
+                  key={`floor-${displayFloor}-${tick}`}
+                  className="flex flex-col items-center"
+                  initial={{ y: goingUp ? 24 : goingDown ? -24 : 0, opacity: 0 }}
+                  animate={{ y: 0, opacity: 1 }}
+                  exit={{ y: goingUp ? -24 : goingDown ? 24 : 0, opacity: 0 }}
+                  transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
+                >
+                  <div className="flex items-center gap-4">
+                    <motion.div
+                      className="flex flex-col items-center gap-0.5"
+                      animate={{ opacity: goingUp ? 1 : 0.15 }}
+                    >
+                      <span className="text-lg leading-none text-emerald-400">▲</span>
+                    </motion.div>
+
+                    <div className="polaris-floor-digits relative flex items-baseline justify-center tabular-nums">
+                      <span className="text-7xl font-light tracking-tight text-white sm:text-8xl">
+                        {floorLabel(displayFloor)}
+                      </span>
+                    </div>
+
+                    <motion.div
+                      className="flex flex-col items-center gap-0.5"
+                      animate={{ opacity: goingDown ? 1 : 0.15 }}
+                    >
+                      <span className="text-lg leading-none text-rose-400">▼</span>
+                    </motion.div>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+
+            {/* Door status */}
+            <motion.p
+              className="mt-4 text-center text-[10px] font-medium uppercase tracking-[0.45em] text-white/45"
+              animate={{ opacity: car.door === 'open' ? [0.5, 1, 0.5] : 1 }}
+              transition={{ duration: 1.2, repeat: car.door === 'open' ? Infinity : 0 }}
+            >
+              {doorLabel}
+            </motion.p>
+          </div>
+
+          {/* Destination strip (Polaris) */}
+          {isPolaris && car.stops.length > 0 && !crash?.active && (
+            <div className="border-t border-white/8 px-4 py-3">
+              <p className="text-[8px] uppercase tracking-widest text-white/30">Next stops</p>
+              <div className="mt-2 flex gap-1.5 overflow-x-auto pb-1">
+                {car.stops.slice(0, 10).map((f, i) => (
+                  <motion.span
+                    key={`${f}-${i}`}
+                    className={`shrink-0 rounded px-2 py-1 text-xs tabular-nums ${i === 0 ? 'bg-white text-black' : 'bg-white/10 text-white/70'}`}
+                    initial={{ opacity: 0, x: -8 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: i * 0.04 }}
+                  >
+                    {floorLabel(f)}
+                  </motion.span>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {riderDest != null && !crash?.active && (
+            <div className="border-t border-white/8 px-4 py-2 text-center">
+              <p className="text-[9px] uppercase tracking-widest text-white/30">Your destination</p>
+              <p className="text-sm font-medium text-white/80">{floorLabel(riderDest)}</p>
+            </div>
+          )}
+
+          {/* Capacity bar */}
+          <div className="px-4 pb-4">
+            <div className="h-1 overflow-hidden rounded-full bg-white/8">
+              <motion.div
+                className="h-full bg-white/50"
+                animate={{ width: `${car.loadFactor * 100}%` }}
+                transition={{ duration: 0.4 }}
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function CrashReadout({ crash }: { crash: CrashState }) {
+  const messages = [
+    '⚠ OVERSPEED',
+    '━━━━━━',
+    'IMPACT',
+    'STUCK BETWEEN FLOORS',
+    'REBOOTING…',
+    'PLEASE REMAIN CALM',
+  ]
+
+  return (
+    <motion.div
+      className="flex min-h-[120px] flex-col items-center justify-center text-center"
+      animate={crash.phase < 3 ? { x: [0, -4, 5, -3, 4, 0] } : {}}
+      transition={{ duration: 0.35, repeat: crash.phase < 3 ? Infinity : 0 }}
+    >
+      {crash.phase < 2 ? (
+        <motion.p
+          className="font-mono text-4xl font-bold tabular-nums text-rose-500"
+          animate={{ opacity: [1, 0.3, 1] }}
+          transition={{ duration: 0.12, repeat: Infinity }}
+        >
+          {floorLabel(Math.floor(crash.spinFloor))}
+        </motion.p>
+      ) : (
+        <p className="text-3xl font-light text-amber-200/90">{floorLabel(crash.stuckFloor)}?</p>
+      )}
+      <motion.p
+        className="mt-4 max-w-[200px] text-[11px] uppercase tracking-widest text-rose-300/90"
+        key={crash.phase}
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+      >
+        {messages[Math.min(crash.phase, messages.length - 1)]}
+      </motion.p>
+      <p className="mt-3 text-[10px] text-white/35">{crash.message}</p>
+    </motion.div>
+  )
+}
+
+type CommuterViewProps = {
+  state: SimState
+  assignment: Assignment | null
+  destination: number | null
+  waitElapsed: number
+  onEnterCar: (id: CarId) => void
+  onCrash: (id: CarId) => void
+}
+
+export function CommuterExperience({
+  state,
+  assignment,
+  destination,
+  waitElapsed,
+  onEnterCar,
+  onCrash,
+}: CommuterViewProps) {
+  const viewCar = state.insideCar ?? assignment?.car ?? state.activeCab
+  const car = state.cars.find((c) => c.id === viewCar)!
+  const myRequest = state.lobbyQueue.find((q) => q.assigned === viewCar && !q.boarded)
+  const riderDest = myRequest?.to ?? state.lobbyQueue.find((q) => q.boarded === viewCar)?.to ?? null
+
+  const canBoard =
+    car.door === 'open' &&
+    Math.abs(car.floor - Math.round(car.floor)) < 0.05 &&
+    Math.round(car.floor) === (state.insideCar ? Math.round(car.floor) : 0)
+
+  return (
+    <div className="grid gap-6 lg:grid-cols-2">
+      {/* Lobby wayfinding display */}
+      <div>
+        <p className="mb-3 text-center text-[10px] uppercase tracking-[0.35em] text-slate-500">
+          Lobby · Destination Operating Panel
+        </p>
+        <PolarisLobbyGuidance
+          assignment={state.insideCar ? null : assignment}
+          destination={destination}
+          brand={state.brand}
+          accessibility={state.accessibility}
+          waitElapsed={waitElapsed}
+        />
+      </div>
+
+      {/* In-car / hall lantern display */}
+      <div>
+        <p className="mb-3 text-center text-[10px] uppercase tracking-[0.35em] text-slate-500">
+          Car {viewCar} · Passenger Display
+        </p>
+        <PolarisCarDisplay car={car} crash={state.crash} brand={state.brand} riderDest={riderDest} />
+
+        <div className="mt-4 flex flex-col gap-2">
+          {!state.insideCar && assignment && canBoard && Math.round(car.floor) === 0 && (
+            <button type="button" className="elev-btn w-full py-3" onClick={() => onEnterCar(viewCar)}>
+              Step aboard Car {viewCar}
+            </button>
+          )}
+          {state.insideCar && (
+            <p className="text-center text-xs text-slate-400">You are aboard Car {state.insideCar}. Watch the floor indicator.</p>
+          )}
+          <button
+            type="button"
+            className="elev-btn w-full border-rose-500/30 text-rose-300/80 hover:bg-rose-950/40"
+            onClick={() => onCrash(viewCar)}
+            disabled={!!state.crash?.active}
+          >
+            ⚠ Simulate elevator crash (whimsical)
+          </button>
+          <p className="text-center text-[10px] text-slate-600">
+            Nobody gets hurt. The building&apos;s lawyer insisted we say that.
+          </p>
+        </div>
+      </div>
+
+      {/* Hall lanterns row */}
+      <div className="lg:col-span-2">
+        <p className="mb-3 text-center text-[10px] uppercase tracking-[0.35em] text-slate-500">Hall lanterns</p>
+        <div className="flex flex-wrap justify-center gap-4">
+          {(['A', 'B', 'C', 'D'] as CarId[]).map((id) => {
+            const c = state.cars.find((x) => x.id === id)!
+            return (
+              <HallLantern key={id} car={c} highlight={id === viewCar} crash={state.crash} />
+            )
+          })}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function HallLantern({ car, highlight, crash }: { car: SimCar; highlight: boolean; crash: CrashState | null }) {
+  const crashed = crash?.active && crash.car === car.id
+  const floor = crashed ? crash!.stuckFloor : Math.round(car.floor)
+
+  return (
+    <div
+      className={`flex flex-col items-center rounded-lg border px-4 py-3 ${highlight ? 'border-white/25 bg-white/5' : 'border-white/8 bg-black/30'}`}
+    >
+      <span className="text-[10px] font-bold text-white/40">{car.id}</span>
+      <motion.span
+        className={`mt-1 text-2xl font-light tabular-nums ${crashed ? 'text-rose-400' : 'text-white/90'}`}
+        animate={crashed ? { opacity: [1, 0.2, 1] } : {}}
+        transition={{ duration: 0.2, repeat: crashed ? Infinity : 0 }}
+      >
+        {floorLabel(floor)}
+      </motion.span>
+      <div className="mt-1 flex gap-2 text-xs">
+        <span className={car.direction > 0 && !crashed ? 'text-emerald-400' : 'text-white/15'}>▲</span>
+        <span className={car.direction < 0 && !crashed ? 'text-rose-400' : 'text-white/15'}>▼</span>
+      </div>
+    </div>
+  )
+}

@@ -125,6 +125,46 @@
     @apply rounded-lg border bg-black/20 py-2.5 text-sm font-medium transition hover:bg-black/35;
   }
 
+  .polaris-fixture-bezel {
+    background: linear-gradient(145deg, #3a3a3c 0%, #1c1c1e 40%, #2a2a2c 100%);
+    border-radius: 6px;
+    box-shadow:
+      0 2px 0 rgba(255, 255, 255, 0.08) inset,
+      0 12px 40px rgba(0, 0, 0, 0.55);
+  }
+
+  .polaris-screen {
+    border-radius: 3px;
+    box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.06) inset;
+  }
+
+  .polaris-floor-digits {
+    text-shadow: 0 0 24px rgba(255, 255, 255, 0.15);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .polaris-crash-shake {
+    animation: polaris-crash-shake 0.12s linear infinite;
+  }
+
+  @keyframes polaris-crash-shake {
+    0% {
+      transform: translate(0, 0);
+    }
+    25% {
+      transform: translate(-3px, 2px);
+    }
+    50% {
+      transform: translate(4px, -2px);
+    }
+    75% {
+      transform: translate(-2px, -3px);
+    }
+    100% {
+      transform: translate(0, 0);
+    }
+  }
+
   .lobby-drift {
     background-color: #121410;
     background-image:

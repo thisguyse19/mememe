@@ -1,21 +1,33 @@
 export const CAR_IDS = ['A', 'B', 'C', 'D'] as const
 export type CarId = (typeof CAR_IDS)[number]
 
+export const VIP_FLOOR = 65
+export const LOBBY_FLOOR = 0
+
+function zoneForFloor(n: number) {
+  if (n <= 15) return 'low' as const
+  if (n <= 35) return 'mid' as const
+  if (n <= 55) return 'high' as const
+  if (n <= 64) return 'sky' as const
+  return 'vip' as const
+}
+
 export const FLOOR_DEFS = [
   { id: -2, label: 'B2', zone: 'parking' as const },
   { id: -1, label: 'B1', zone: 'parking' as const },
   { id: 0, label: 'L', zone: 'lobby' as const },
-  ...Array.from({ length: 24 }, (_, i) => ({
-    id: i + 1,
-    label: String(i + 1),
-    zone: (i + 1 <= 8 ? 'low' : i + 1 <= 16 ? 'mid' : 'high') as 'low' | 'mid' | 'high',
-  })),
-  { id: 25, label: 'PH', zone: 'vip' as const },
+  ...Array.from({ length: 65 }, (_, i) => {
+    const id = i + 1
+    return {
+      id,
+      label: id === VIP_FLOOR ? '65' : String(id),
+      zone: zoneForFloor(id),
+    }
+  }),
 ]
 
 export const FLOOR_MIN = FLOOR_DEFS[0].id
-export const FLOOR_MAX = FLOOR_DEFS[FLOOR_DEFS.length - 1].id
-export const LOBBY_FLOOR = 0
+export const FLOOR_MAX = VIP_FLOOR
 
 export type SystemBrand = 'compass360' | 'polaris' | 'hybrid' | 'collective'
 export type DoorState = 'closed' | 'opening' | 'open' | 'closing'
@@ -47,6 +59,16 @@ export type HallCall = {
   dir: 1 | -1
 }
 
+export type CrashState = {
+  active: boolean
+  car: CarId
+  phase: number
+  phaseT: number
+  stuckFloor: number
+  spinFloor: number
+  message: string
+}
+
 export type SimCar = {
   id: CarId
   floor: number
@@ -57,7 +79,7 @@ export type SimCar = {
   stops: number[]
   riders: Rider[]
   dwellLeft: number
-  mode: 'auto' | 'independent' | 'fire' | 'inspection'
+  mode: 'auto' | 'independent' | 'fire' | 'inspection' | 'crash'
   loadFactor: number
 }
 
@@ -72,6 +94,7 @@ export type SimState = {
   extendedDwell: boolean
   vipUnlocked: boolean
   fireService: boolean
+  crash: CrashState | null
   logs: SimLog[]
   nextId: number
   activeCab: CarId
