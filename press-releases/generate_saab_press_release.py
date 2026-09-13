@@ -33,6 +33,22 @@ class PressReleasePDF(FPDF):
         self.multi_cell(0, 5.2, f'"{text}" says {name}, {title}.')
         self.ln(3)
 
+    def trim_heading(self, name: str, price: str):
+        self.ln(2)
+        self.set_font("DejaVu", "B", 10)
+        self.set_text_color(0, 51, 102)
+        self.multi_cell(0, 5.5, f"{name}  —  from {price}")
+        self.ln(1)
+
+    def feature_line(self, label: str, items: str):
+        self.set_font("DejaVu", "B", 9)
+        self.set_text_color(60, 60, 60)
+        self.cell(28, 5, label + ":", new_x="END")
+        self.set_font("DejaVu", "", 9)
+        self.set_text_color(30, 30, 30)
+        self.multi_cell(0, 5, items)
+        self.ln(1)
+
 
 def spec_table(pdf: PressReleasePDF, rows: list[tuple[str, str]]):
     w_label, w_val = 72, 94
@@ -163,41 +179,66 @@ def build():
         "specifications. Saaboob MATRIX LED headlamps are fitted across the range."
     )
 
-    pdf.section("Model range")
+    pdf.section("Trim levels and equipment")
     pdf.body(
-        "The Saab 10-5 is available in three specifications: Core, Premium Plus and Launch Edition."
-    )
-    pdf.body(
-        "Core includes all-wheel drive, Saabtronic transmission, Saaboob lighting, Saabomboclat infotainment, "
-        "Saabriver, Saab Darkroom instrumentation, Saabitch voice control, dual-zone climate control, "
-        "power-adjustable front seats and 20-inch alloy wheels. List price from EUR 189,000."
-    )
-    pdf.body(
-        "Premium Plus adds Saabonomous Driving, Saabitch Pro, the 0G seating system with Bose Magneride, "
-        "Saabiarrhoea scent personalisation, the full four-screen cabin display, a 34-speaker Harman Kardon "
-        "audio system with Saabombastic tuning, soft-close doors, head-up display and 21-inch alloy wheels. "
-        "List price from EUR 224,000."
-    )
-    pdf.body(
-        "Launch Edition is limited to 500 vehicles for the 2027 model year. "
-        "It includes all Premium Plus equipment together with Trollhättan Copper exterior paint, "
-        "Launch Edition interior trim in Nappa leather and brushed aluminium, black brake calipers, "
-        "carbon exterior mirror caps and model-specific badging on the C-pillars and sill plates. "
-        "List price from EUR 268,000."
+        "The Saab 10-5 is offered in three specifications. All versions share the V12 hybrid powertrain, "
+        "Saabtronic transmission, all-wheel drive, Saabottom rear-wheel steering, Saaboob MATRIX LED "
+        "lighting and Saabriver driver recognition. Equipment differences are set out below."
     )
 
-    pdf.section("Exterior colours and interiors")
+    pdf.trim_heading("Core", "EUR 189,000")
     pdf.body(
-        "Eleven exterior colours are available on Core and Premium Plus: Aero Blue, Arctic White, "
-        "Baltic Grey, Graphite Steel, Granite Black, Ice Silver, Midnight Green, Polar Midnight, "
-        "Scarlet Wing, Storm Cloud and Titanium Mist. Trollhättan Copper is reserved for Launch Edition."
+        "Core is the entry specification. It includes the full hybrid powertrain and Saabtronic "
+        "transmission with paddle shifters, Saaboob lighting, power-folding mirrors and keyless entry."
     )
+    pdf.feature_line("Interior", "Charcoal woven textile upholstery, aluminium dash trim, 12.3-inch Saab Darkroom display, 14-inch central touchscreen, Saabomboclat infotainment, Saabitch voice control, dual-zone climate control, heated front seats, power-adjustable front seats with memory linked to Saabriver")
+    pdf.feature_line("Audio", "12-speaker Harman Kardon system")
+    pdf.feature_line("Wheels", "20-inch Aero turbine alloy wheels")
+    pdf.feature_line("Safety", "Adaptive cruise control, lane keeping assist, automatic emergency braking, 360-degree camera, front and rear parking sensors")
+    pdf.feature_line("Comfort", "Electric tailgate, rain-sensing wipers, heated steering wheel, wireless phone charging")
+
+    pdf.trim_heading("Premium Plus", "EUR 224,000")
     pdf.body(
-        "Aero Blue and Granite Black are offered at no additional cost. All other colours on Core and "
-        "Premium Plus are available at supplementary charge. Two interior environments are offered: "
-        "Charcoal woven textile with aluminium trim on Core, and Nappa leather with walnut inlay on "
-        "Premium Plus and Launch Edition. A third all-black Nappa option is available on Premium Plus "
-        "at no charge."
+        "Premium Plus includes all Core equipment and adds Saab's full driver assistance and personalisation "
+        "package. Saabonomous Driving is standard on this specification."
+    )
+    pdf.feature_line("Added interior", "Nappa leather upholstery (black or walnut inlay), four-screen cabin layout with 17.4-inch central display, 12.8-inch passenger screen and twin 7.2-inch rear tablets, 0G front seats with Bose Magneride, Saabiarrhoea scent personalisation, soft-close doors, head-up display, four-zone climate control, ventilated front seats, rear Executive Lounge seating with 956 mm legroom")
+    pdf.feature_line("Added audio", "34-speaker Harman Kardon system with Saabombastic tuning and Dolby Atmos")
+    pdf.feature_line("Added tech", "Saabitch Pro, Saabonomous Driving, digital key, over-the-air updates")
+    pdf.feature_line("Added exterior", "21-inch split-spoke alloy wheels, panoramic glass roof, acoustic laminated side glass, power rear sunblinds")
+    pdf.feature_line("Added comfort", "Air quality sensor, fragrance diffuser linked to Saabriver, hands-free tailgate")
+
+    pdf.trim_heading("Launch Edition", "EUR 268,000")
+    pdf.body(
+        "Launch Edition is limited to 500 vehicles for the 2027 model year. It is based on Premium Plus "
+        "and adds the following exclusive items."
+    )
+    pdf.feature_line("Exterior", "Trollhättan Copper paint (fixed), carbon mirror caps, black brake calipers, dark Saaboob lens tint, Launch Edition badging on C-pillars and sill plates, exclusive 21-inch forged alloy wheels")
+    pdf.feature_line("Interior", "Launch Edition Nappa leather with brushed aluminium and copper stitching, illuminated door sills, numbered plaque on centre console, copper-accent steering wheel")
+    pdf.feature_line("Included", "All Premium Plus equipment, dedicated Launch Edition delivery case, two years complimentary Saab Connected Services")
+
+    pdf.section("Exterior colours")
+    pdf.body(
+        "Eleven exterior colours are available on Core and Premium Plus. Saab offers two no-cost colours "
+        "and nine supplementary colours. Trollhättan Copper is exclusive to Launch Edition and is not "
+        "available on other specifications."
+    )
+    pdf.feature_line("No-cost colours", "Aero Blue (metallic), Granite Black (solid)")
+    pdf.feature_line("Metallic colours", "Baltic Grey, Graphite Steel, Ice Silver, Midnight Green, Polar Midnight, Storm Cloud, Titanium Mist — EUR 1,200")
+    pdf.feature_line("Premium colours", "Arctic White (pearlescent), Scarlet Wing (special effect) — EUR 2,400")
+    pdf.feature_line("Launch Edition", "Trollhättan Copper (included, not optional)")
+
+    pdf.section("Interior colours and materials")
+    pdf.body(
+        "Interior specification depends on trim level. Core is supplied with the Charcoal textile environment "
+        "as standard. Premium Plus and Launch Edition use Nappa leather."
+    )
+    pdf.feature_line("Core", "Charcoal woven textile with aluminium trim — standard, no alternative")
+    pdf.feature_line("Premium Plus", "Black Nappa leather — no-cost option; Walnut Nappa with open-pore walnut inlay — no-cost option")
+    pdf.feature_line("Launch Edition", "Launch Edition Nappa with brushed aluminium and copper stitching — fixed specification")
+    pdf.body(
+        "All leather interiors use vegetable-tanned Nappa sourced within the EU. Contrast stitching "
+        "matches exterior colour on Premium Plus when a supplementary paint is selected."
     )
 
     pdf.section("Market introduction")
