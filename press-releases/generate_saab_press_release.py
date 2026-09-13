@@ -15,42 +15,24 @@ class PressReleasePDF(FPDF):
         self.cell(0, 8, str(self.page_no()), align="C")
 
     def section(self, title: str):
-        self.ln(3)
-        self.set_font("DejaVu", "B", 11)
-        self.set_text_color(0, 51, 102)
-        self.multi_cell(0, 6, title.upper())
-        self.ln(1)
-        self.set_draw_color(0, 51, 102)
-        self.set_line_width(0.3)
-        self.line(self.l_margin, self.get_y(), self.w - self.r_margin, self.get_y())
-        self.ln(3)
+        self.ln(4)
+        self.set_font("DejaVu", "B", 10)
+        self.set_text_color(0, 0, 0)
+        self.multi_cell(0, 5.5, title)
+        self.ln(2)
 
     def body(self, text: str):
         self.set_font("DejaVu", "", 10)
         self.set_text_color(30, 30, 30)
         self.multi_cell(0, 5.2, text)
-        self.ln(2)
+        self.ln(2.5)
 
-    def bullet(self, text: str):
+    def quote(self, text: str, name: str, title: str):
         self.set_font("DejaVu", "", 10)
         self.set_text_color(30, 30, 30)
-        x = self.l_margin
-        self.set_x(x)
-        self.cell(5, 5.2, "•")
-        self.multi_cell(0, 5.2, text)
-        self.ln(0.5)
-
-    def quote(self, text: str, attribution: str):
-        self.set_font("DejaVu", "", 10)
-        self.set_text_color(40, 40, 40)
-        self.set_x(self.l_margin + 4)
-        self.multi_cell(0, 5.2, f'"{text}"')
-        self.ln(1)
-        self.set_font("DejaVu", "", 9)
-        self.set_text_color(80, 80, 80)
-        self.set_x(self.l_margin + 4)
-        self.multi_cell(0, 5, attribution)
+        self.multi_cell(0, 5.2, f'"{text}" says {name}, {title}.')
         self.ln(3)
+
 
 def spec_table(pdf: PressReleasePDF, rows: list[tuple[str, str]]):
     w_label, w_val = 72, 94
@@ -78,7 +60,6 @@ def build():
     pdf.set_margins(20, 18, 20)
     pdf.add_page()
 
-    # Letterhead
     pdf.set_font("DejaVu", "B", 24)
     pdf.set_text_color(0, 51, 102)
     pdf.cell(0, 10, "SAAB", new_x="LMARGIN", new_y="NEXT")
@@ -96,253 +77,174 @@ def build():
     pdf.cell(0, 5, "FOR IMMEDIATE RELEASE", new_x="LMARGIN", new_y="NEXT")
     pdf.ln(3)
 
-    pdf.set_font("DejaVu", "B", 17)
+    pdf.set_font("DejaVu", "B", 16)
     pdf.set_text_color(0, 0, 0)
     pdf.multi_cell(0, 7, "Saab unveils the new Saab 10-5")
-    pdf.ln(1)
-    pdf.set_font("DejaVu", "", 12)
-    pdf.set_text_color(50, 50, 50)
-    pdf.multi_cell(
-        0,
-        5.8,
-        "New flagship combines 693 hp V12 hybrid performance, 78 km electric range, Saabonomous Driving and deeply personalised cabin technology",
-    )
     pdf.ln(4)
 
     pdf.body(
-        "TROLLHÄTTAN, Sweden, September 11, 2026 – Saab Automobile today unveiled the Saab 10-5, "
-        "the company's first all-new flagship sedan in more than a decade and the centrepiece of a "
-        "EUR 2.4 billion reinvestment in Swedish premium vehicle development. Developed at Saab's "
-        "renewed Product Development Centre in Trollhättan, the 10-5 combines a bespoke V12 hybrid "
-        "powertrain with Saab's most advanced software-defined vehicle architecture to date."
+        "Trollhättan, Sweden, 11 September 2026 — Saab has today unveiled the Saab 10-5, "
+        "a new flagship passenger car developed at the company's Product Development Centre in Trollhättan."
     )
     pdf.body(
-        "Measuring 5,218 mm in length and riding on a 3,016 mm wheelbase, the Saab 10-5 targets "
-        "the upper echelon of the global luxury segment. The vehicle introduces more than 40 new "
-        "Saab technologies spanning autonomous driving, biometric personalisation, adaptive lighting, "
-        "active scent management and a 34-speaker immersive audio system tuned under the Saabombastic™ "
-        "programme."
+        "The Saab 10-5 is equipped with a V12 hybrid powertrain rated at 693 hp and 1,021 Nm of torque. "
+        "Power is transferred through an 11-speed dual-clutch transmission, designated Saabtronic. "
+        "Acceleration from 0 to 100 km/h is stated at 2.9 seconds."
+    )
+    pdf.body(
+        "The car also introduces several new Saab systems for assisted driving, driver recognition, "
+        "infotainment, lighting, seating, audio and cabin environment control."
     )
 
     pdf.quote(
-        "The Saab 10-5 represents a new direction for Saab. We have combined our heritage of "
-        "engineering integrity with a software-first approach that treats every driver as an individual. "
-        "More than six years of development and 14 million kilometres of validation testing underpin "
-        "a vehicle that is as confident on a Swedish winter road as it is in autonomous urban traffic.",
-        "— Erik Lindqvist, President and Chief Executive Officer, Saab Automobile",
+        "The Saab 10-5 marks a new step for Saab in passenger vehicles. We have applied the same "
+        "discipline to engineering and system integration that we use across our other business areas, "
+        "with greater emphasis on how the vehicle adapts to the driver",
+        "Erik Lindqvist",
+        "President and CEO of Saab Automobile",
     )
 
     pdf.section("Performance and powertrain")
     pdf.body(
-        "At the heart of the Saab 10-5 is a newly developed 6.0-litre twin-turbocharged V12 hybrid "
-        "system producing 693 hp (515 kW) and 1,021 Nm of torque. A 38 kWh lithium-ion battery pack "
-        "mounted in the vehicle floor enables up to 78 km of WLTP-certified electric-only driving and "
-        "supports peak regen rates of 220 kW."
+        "The hybrid system combines a 6.0-litre twin-turbocharged V12 with a 38 kWh battery mounted in the floor. "
+        "Saab quotes an electric range of up to 78 km under WLTP and combined CO₂ emissions of 42 g/km. "
+        "These figures remain provisional pending final homologation."
     )
     pdf.body(
-        "Power is transmitted through Saabtronic, an 11-speed dual-clutch transmission co-developed "
-        "with Saab Powertrain Engineering. The gearbox and integrated inverter assembly utilise Saab's "
-        "Saabrication micro-channel cooling technology across approximately 210 precision components, "
-        "maintaining oil and stator temperatures within a 4°C window during sustained track use."
+        "Saabtronic was developed for the 10-5 programme. The transmission and its thermal management "
+        "system use Saab's Saabrication cooling technology."
     )
-    pdf.bullet("0–100 km/h: 2.9 seconds (Launch Control, factory specification)")
-    pdf.bullet("0–200 km/h: 9.4 seconds")
-    pdf.bullet("Top speed: 312 km/h (electronically limited)")
-    pdf.bullet("Combined fuel consumption (provisional WLTP): 2.1 l/100 km")
-    pdf.bullet("Combined CO₂ emissions (provisional WLTP): 42 g/km")
-    pdf.bullet("Electric range (WLTP): up to 78 km")
-    pdf.ln(2)
-
     pdf.body(
-        "Saabottom rear-wheel steering turns the rear axle by up to 5° at speeds below 40 km/h to "
-        "reduce the turning circle to 11.2 metres — comparable to the company's compact 9-3 estate — "
-        "while providing enhanced high-speed stability through phase-adaptive toe control above 80 km/h."
+        "Saabottom rear-wheel steering allows up to five degrees of rear axle movement. "
+        "The system is intended to reduce low-speed turning radius and support stability at higher road speeds. "
+        "The wheelbase measures 3,016 mm."
     )
 
     pdf.section("Saabonomous Driving")
     pdf.body(
-        "The Saab 10-5 debuts Saabonomous Driving, Saab's Level 3-capable autonomous platform, "
-        "supported by 32 sensors including long-range lidar, 8 MP adaptive cameras and satellite "
-        "corrected HD mapping. In approved operational design domains (ODDs), drivers may disengage "
-        "from vehicle control at speeds up to 130 km/h; Saab estimates that up to 38% of a typical "
-        "European highway commute may be completed in Saabonomous mode by launch."
+        "The Saab 10-5 is the first Saab car to be offered with Saabonomous Driving. "
+        "The system uses lidar, cameras and map data as part of the vehicle's electronic architecture."
     )
     pdf.body(
-        "Saab has invested SEK 4.8 billion (approx. EUR 420 million) in Saabonomous software "
-        "development since 2021, employing more than 1,100 engineers across Trollhättan, Linköping "
-        "and Munich. Over-the-air updates will expand ODD coverage in Sweden, Germany, Norway and "
-        "the Netherlands from launch, with North American certification targeted for 2028. "
-        "Dual Saab Brain ECUs deliver 1,200 TOPS of AI inference capacity, processing 6.4 GB/s of fused sensor data."
+        "Where permitted by local regulation and within defined operating conditions, the driver may "
+        "hand over control to the system. Saab will release Saabonomous functionality in Sweden, Germany, "
+        "Norway and the Netherlands from launch, with further markets to follow."
     )
 
-    pdf.section("Saabriver personalisation")
+    pdf.section("Saabriver")
     pdf.body(
-        "Saabriver uses facial recognition, gait analysis and smartphone UWB proximity to identify "
-        "up to 30 registered drivers with 99.2% accuracy in internal testing. Upon recognition, "
-        "the vehicle restores seat, steering, climate, audio, navigation, lighting and scent profiles "
-        "within 1.8 seconds of door unlock — eliminating an estimated 847 manual interactions per year "
-        "for a typical multi-driver household, according to Saab user research."
+        "Saabriver is Saab's driver recognition and personalisation system. "
+        "It can store profiles for up to 30 drivers and apply settings for seating, climate, audio, "
+        "navigation, lighting and related functions when a registered user enters the vehicle."
     )
     pdf.quote(
-        "Personalisation has traditionally meant adjusting a seat or selecting a radio station. "
-        "With Saabriver, the vehicle anticipates who is arriving before they sit down. That includes "
-        "cabin fragrance, suspension calibration and even the tone of voice Saabitch uses for "
-        "morning briefings.",
-        "— Sofia Ekström, Vice President, User Experience and Digital Systems, Saab Automobile",
+        "With Saabriver, the vehicle identifies who is driving and applies the correct settings automatically. "
+        "That is a practical extension of the work we are doing elsewhere in human-machine interaction",
+        "Sofia Ekström",
+        "Head of User Experience and Digital Systems at Saab Automobile",
     )
 
     pdf.section("Saabomboclat Infotainment System")
     pdf.body(
-        "The Saabomboclat Infotainment System runs on Saab OS 10, built on a dual-redundant Linux "
-        "and QNX hypervisor. A 12.3-inch Saab Darkroom digital instrument cluster is complemented "
-        "by a 17.4-inch central display, 12.8-inch front passenger screen and two 7.2-inch rear-seat "
-        "command tablets — four displays in total, all sharing a unified 240 Hz touch pipeline."
+        "Infotainment functions are handled by the Saabomboclat system, running Saab OS 10. "
+        "The driver uses a 12.3-inch Saab Darkroom display. Three additional screens are fitted in the cabin."
     )
     pdf.body(
-        "Saabitch, Saab's context-aware voice assistant, supports natural-language control across "
-        "more than 1,200 vehicle functions in 24 languages and achieves a 97% intent recognition "
-        "rate in Saab's benchmark testing. Saabitch Pro, included on Premium Plus trim, adds "
-        "predictive routing, calendar integration and the ability to pre-condition the cabin based "
-        "on the driver's historical departure times."
+        "Voice control is provided through Saabitch, Saab's in-car assistant. "
+        "Saabitch Pro is included on Premium Plus specification."
     )
 
-    pdf.section("Cabin, comfort and Saabombastic audio")
+    pdf.section("Cabin and audio")
     pdf.body(
-        "Saabiarrhoea scent personalisation offers 16 base accords developed with Givaudan, "
-        "expandable to 64 custom blends per Saabriver profile. Diffusion intensity adapts to "
-        "driving mode — \"Focus\" suppresses citrus top notes during Saabonomous operation, "
-        "while \"Arrive\" increases woody base notes when geofencing detects proximity to home."
-    )
-    pdf.body(
-        "The 0G seating system, developed with Bose Magneride, uses 18 pneumatic zones per front "
-        "seat and can redistribute pressure up to 30 times per second. Rear Executive Lounge "
-        "specification adds 38° recline and integrated calf rests on a 956 mm legroom measurement."
-    )
-    pdf.body(
-        "Audio duties fall to a 34-speaker Harman Kardon system rated at 2,040 watts, including "
-        "five 12-inch subwoofers and headrest transducers on all outboard positions. Saabombastic™ "
-        "tuning — developed with Abbey Road Studios — introduces vehicle-specific spatial audio "
-        "rendering with 9.2.4 Dolby Atmos certification. Launch trim uses 94% renewable or recycled "
-        "materials by cabin surface area."
+        "Saabiarrhoea provides driver-specific scent settings linked to Saabriver profiles. "
+        "Front seats use the 0G system with Bose Magneride. "
+        "A 34-speaker Harman Kardon installation is available, including Saabombastic audio tuning."
     )
 
-    pdf.section("Design and Saaboob lighting")
+    pdf.section("Exterior and lighting")
     pdf.body(
-        "Exterior design, led by Saab Design Director Maja Holmgren, references the company's "
-        "aerospace heritage through a \"Canard\" front graphic and wraparound light blade. "
-        "Saaboob MATRIX LED headlamps incorporate 1.4 million micro-mirrors per side, enabling "
-        "adaptive beam shaping that dims individual pixels to avoid dazzling oncoming traffic "
-        "while maintaining 94% of high-beam throw."
-    )
-    pdf.body(
-        "Twelve exterior colours launch at reveal, including heritage-inspired \"Aero Blue\" and "
-        "the limited \"Trollhättan Copper\" reserved for the first 500 Launch Edition vehicles."
+        "Saaboob MATRIX LED headlamps are fitted as standard. "
+        "The exterior length is 5,218 mm. "
+        "Twelve paint finishes are offered at launch, including Aero Blue and Trollhättan Copper on Launch Edition cars."
     )
 
-    pdf.add_page()
-    pdf.section("Market introduction and pricing")
+    pdf.section("Market introduction")
     pdf.body(
-        "The Saab 10-5 will be presented to media and customers at the Saab Global Reveal in "
-        "Stockholm on 18 September 2026. Order books open immediately in Sweden, Norway, Germany, "
-        "the United Kingdom and the Netherlands, with further European markets following in Q4 2026."
-    )
-    pdf.bullet("Saab 10-5 Core: from EUR 189,000")
-    pdf.bullet("Saab 10-5 Premium Plus: from EUR 224,000")
-    pdf.bullet("Saab 10-5 Launch Edition (500 units): from EUR 268,000")
-    pdf.ln(2)
-    pdf.body(
-        "Saab expects to produce approximately 18,000 units annually at its Trollhättan facility "
-        "following a EUR 640 million line retooling completed in June 2026. The programme supports "
-        "1,850 direct manufacturing jobs and an estimated 6,200 positions across the Nordic supplier "
-        "network. First customer deliveries are scheduled for Q2 2027."
+        "The Saab 10-5 will be shown to media and customers in Stockholm on 18 September 2026. "
+        "Orders open in Sweden, Norway, Germany, the United Kingdom and the Netherlands. "
+        "Deliveries are planned to begin in the second quarter of 2027."
     )
     pdf.body(
-        "Within 72 hours of the confidential preview programme opening to existing Saab owners, "
-        "Saab reported 3,412 refundable reservations equivalent to 19% of first-year production "
-        "capacity — the strongest deposit conversion in company history."
+        "List prices start at EUR 189,000 for Core specification, EUR 224,000 for Premium Plus "
+        "and EUR 268,000 for Launch Edition. Production will take place in Trollhättan."
     )
 
     pdf.section("Safety and sustainability")
     pdf.body(
-        "The Saab 10-5 is engineered to meet Euro NCAP 2026 protocols and targets a five-star rating. "
-        "Structural safety includes a multi-cell aluminium and boron-steel passenger cage, "
-        "pre-tensioning rear seatbelts and Saab Shield pedestrian protection with active bonnet lift."
-    )
-    pdf.body(
-        "Saab aims for 40% recycled aluminium content in the body-in-white and certifies the 10-5 "
-        "under ISO 14001 at the Trollhättan assembly plant. Battery cells are sourced from Northvolt "
-        "Ett (Skellefteå, Sweden), reducing upstream transport emissions by an estimated 58% "
-        "compared with Asian-sourced cells in Saab's previous hybrid programmes."
+        "The Saab 10-5 is being developed to meet current Euro NCAP requirements. "
+        "Battery cells for the hybrid system are supplied by Northvolt. "
+        "The Trollhättan plant is certified to ISO 14001."
     )
 
-    pdf.section("Key specifications")
+    pdf.section("Technical data")
     spec_table(
         pdf,
         [
-            ("Body style", "Four-door flagship sedan"),
+            ("Body style", "Four-door sedan"),
             ("Length / width / height", "5,218 / 1,998 / 1,445 mm"),
             ("Wheelbase", "3,016 mm"),
             ("Kerb weight (DIN)", "2,285 kg"),
             ("Drag coefficient (Cd)", "0.24"),
-            ("Powertrain", "6.0L twin-turbo V12 hybrid"),
-            ("System power", "693 hp (515 kW)"),
-            ("System torque", "1,021 Nm"),
-            ("Battery capacity", "38 kWh (gross)"),
+            ("Powertrain", "6.0-litre V12 hybrid"),
+            ("System output", "693 hp (515 kW)"),
+            ("Torque", "1,021 Nm"),
+            ("Battery", "38 kWh"),
             ("Electric range (WLTP)", "Up to 78 km"),
-            ("Transmission", "11-speed dual-clutch Saabtronic"),
-            ("0–100 km/h", "2.9 seconds"),
-            ("Top speed", "312 km/h (limited)"),
+            ("Transmission", "11-speed Saabtronic"),
+            ("0–100 km/h", "2.9 s"),
+            ("Top speed", "312 km/h"),
             ("Fuel consumption (WLTP)", "2.1 l/100 km (provisional)"),
             ("CO₂ emissions (WLTP)", "42 g/km (provisional)"),
-            ("Drive layout", "AWD with Saabottom rear steer"),
+            ("Drive", "All-wheel drive"),
+            ("Rear-wheel steering", "Saabottom, up to 5°"),
             ("Turning circle", "11.2 m"),
-            ("Boot capacity", "412 l (hybrid mode)"),
+            ("Boot volume", "412 l"),
             ("Fuel tank", "68 l"),
-            ("Autonomous driving", "Saabonomous Level 3 (ODD)"),
-            ("Driver recognition", "Saabriver, up to 30 drivers"),
-            ("Displays", "Four (12.3\" + 17.4\" + 12.8\" + 2×7.2\")"),
+            ("Assisted driving", "Saabonomous Driving"),
+            ("Driver recognition", "Saabriver (30 profiles)"),
+            ("Displays", "Four"),
             ("Infotainment", "Saabomboclat / Saab OS 10"),
-            ("Voice assistant", "Saabitch (24 languages)"),
-            ("Audio", "34-speaker Harman Kardon, 2,040 W"),
-            ("Audio tuning", "Saabombastic™ / Dolby Atmos 9.2.4"),
+            ("Voice assistant", "Saabitch"),
+            ("Audio", "Harman Kardon, 34 speakers"),
             ("Lighting", "Saaboob MATRIX LED"),
-            ("Seating", "0G system, Bose Magneride"),
-            ("Scent personalisation", "Saabiarrhoea (16 base accords)"),
-            ("Cooling technology", "Saabrication"),
-            ("Production site", "Trollhättan, Sweden"),
-            ("Annual volume target", "18,000 units"),
+            ("Seating", "0G / Bose Magneride"),
+            ("Scent system", "Saabiarrhoea"),
+            ("Production", "Trollhättan, Sweden"),
         ],
     )
 
-    pdf.section("About Saab Automobile")
-    pdf.body(
-        "Saab Automobile is the premium vehicle division of Saab AB, headquartered in Trollhättan, "
-        "Sweden. Following its relaunch in 2024, the brand employs more than 8,400 people globally "
-        "and operates design, engineering and manufacturing centres in Sweden, Germany and China."
-    )
     pdf.section("About Saab")
     pdf.body(
-        "Saab is a leading defence and security company with an enduring mission to help nations "
-        "keep their people and society safe. Employing approximately 24,000 people across more than "
-        "30 countries, Saab continuously develops, adopts and improves technology to meet changing "
-        "customer requirements."
+        "Saab is a leading defence and security company with an enduring purpose, to help nations "
+        "keep their people and society safe. Empowered by its 29,000 talented people, Saab constantly "
+        "pushes the boundaries of technology to create a safer and more sustainable world. Saab designs, "
+        "manufactures and maintains advanced systems in aeronautics, weapons, command and control, "
+        "sensors and underwater systems. Saab is headquartered in Sweden. It has major operations all "
+        "over the world and is part of the domestic defence capability of several nations."
     )
 
     pdf.ln(2)
     pdf.set_font("DejaVu", "B", 10)
     pdf.set_text_color(0, 0, 0)
-    pdf.cell(0, 6, "Media contacts", new_x="LMARGIN", new_y="NEXT")
+    pdf.cell(0, 6, "Contact", new_x="LMARGIN", new_y="NEXT")
     pdf.ln(1)
     pdf.set_font("DejaVu", "", 10)
     pdf.set_text_color(30, 30, 30)
     for line in [
         "Saab Press Centre",
-        "Saab AB  |  Press & Media Relations",
-        "SE-581 88 Linköping, Sweden",
-        "Telephone: +46 13 18 00 00",
-        "Email: press@saab.com",
-        "Media assets: media.saab.com/saab-10-5",
-        "Web: www.saab.com",
+        "+46 (0)734 180 018",
+        "presscentre@saabgroup.com",
+        "www.saab.com",
     ]:
         pdf.cell(0, 5.2, line, new_x="LMARGIN", new_y="NEXT")
 
