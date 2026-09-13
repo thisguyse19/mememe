@@ -52,23 +52,6 @@ class PressReleasePDF(FPDF):
         self.multi_cell(0, 5, attribution)
         self.ln(3)
 
-    def figure(self, num: int, caption: str):
-        self.ln(2)
-        y = self.get_y()
-        self.set_fill_color(235, 238, 242)
-        self.rect(self.l_margin, y, self.w - self.l_margin - self.r_margin, 38, style="F")
-        self.set_draw_color(180, 190, 200)
-        self.rect(self.l_margin, y, self.w - self.l_margin - self.r_margin, 38, style="D")
-        self.set_xy(self.l_margin + 4, y + 12)
-        self.set_font("DejaVu", "", 9)
-        self.set_text_color(100, 110, 120)
-        self.cell(0, 5, f"[ Figure {num} — High-resolution imagery available via Saab Media Centre ]", align="C")
-        self.ln(18)
-        self.set_font("DejaVu", "B", 9)
-        self.set_text_color(50, 50, 50)
-        self.multi_cell(0, 4.8, f"Figure {num}. {caption}")
-        self.ln(3)
-
     def fact_box(self, title: str, lines: list[str]):
         self.set_fill_color(240, 246, 252)
         y0 = self.get_y()
@@ -169,13 +152,6 @@ def build():
         "programme."
     )
 
-    pdf.figure(
-        1,
-        "The Saab 10-5 in launch specification \"Polar Midnight\" at Saab's Trollhättan design studio. "
-        "The vehicle's 5,218 mm body incorporates Saaboob MATRIX LED lighting and an active aerodynamic "
-        "underbody delivering a drag coefficient of Cd 0.24.",
-    )
-
     pdf.quote(
         "The Saab 10-5 represents a new direction for Saab. We have combined our heritage of "
         "engineering integrity with a software-first approach that treats every driver as an individual. "
@@ -223,13 +199,8 @@ def build():
         "Saab has invested SEK 4.8 billion (approx. EUR 420 million) in Saabonomous software "
         "development since 2021, employing more than 1,100 engineers across Trollhättan, Linköping "
         "and Munich. Over-the-air updates will expand ODD coverage in Sweden, Germany, Norway and "
-        "the Netherlands from launch, with North American certification targeted for 2028."
-    )
-
-    pdf.figure(
-        2,
-        "Saabonomous sensor suite and compute architecture. The Saab 10-5 integrates dual Saab Brain "
-        "ECUs delivering 1,200 TOPS of AI inference capacity, processing 6.4 GB/s of fused sensor data.",
+        "the Netherlands from launch, with North American certification targeted for 2028. "
+        "Dual Saab Brain ECUs deliver 1,200 TOPS of AI inference capacity, processing 6.4 GB/s of fused sensor data."
     )
 
     pdf.section("Saabriver personalisation")
@@ -280,12 +251,6 @@ def build():
         "five 12-inch subwoofers and headrest transducers on all outboard positions. Saabombastic™ "
         "tuning — developed with Abbey Road Studios — introduces vehicle-specific spatial audio "
         "rendering with 9.2.4 Dolby Atmos certification."
-    )
-
-    pdf.figure(
-        3,
-        "Interior of the Saab 10-5 showing Saab Darkroom cluster, Saabomboclat central display and "
-        "0G seats. The cabin uses 94% renewable or recycled materials by surface area in launch trim.",
     )
 
     pdf.section("Design and Saaboob lighting")
