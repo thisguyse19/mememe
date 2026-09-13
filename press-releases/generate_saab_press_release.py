@@ -12,7 +12,7 @@ class PressReleasePDF(FPDF):
         self.set_y(-14)
         self.set_font("DejaVu", "", 8)
         self.set_text_color(120, 120, 120)
-        self.cell(0, 8, f"Saab 10-5 Press Release  |  Page {self.page_no()}", align="C")
+        self.cell(0, 8, str(self.page_no()), align="C")
 
     def section(self, title: str):
         self.ln(3)
@@ -52,24 +52,6 @@ class PressReleasePDF(FPDF):
         self.multi_cell(0, 5, attribution)
         self.ln(3)
 
-    def fact_box(self, title: str, lines: list[str]):
-        self.set_fill_color(240, 246, 252)
-        y0 = self.get_y()
-        self.rect(self.l_margin, y0, self.w - self.l_margin - self.r_margin, 8 + len(lines) * 5.5, style="F")
-        self.set_xy(self.l_margin + 4, y0 + 3)
-        self.set_font("DejaVu", "B", 10)
-        self.set_text_color(0, 51, 102)
-        self.cell(0, 5, title)
-        self.ln(6)
-        self.set_font("DejaVu", "", 9)
-        self.set_text_color(40, 40, 40)
-        for line in lines:
-            self.set_x(self.l_margin + 4)
-            self.cell(0, 5.2, line)
-            self.ln(5.2)
-        self.ln(4)
-
-
 def spec_table(pdf: PressReleasePDF, rows: list[tuple[str, str]]):
     w_label, w_val = 72, 94
     pdf.set_font("DejaVu", "B", 9)
@@ -102,7 +84,7 @@ def build():
     pdf.cell(0, 10, "SAAB", new_x="LMARGIN", new_y="NEXT")
     pdf.set_font("DejaVu", "", 9)
     pdf.set_text_color(100, 100, 100)
-    pdf.cell(0, 5, "Press Release  |  Media Information  |  Ref: SAAB-PR-2026-105", new_x="LMARGIN", new_y="NEXT")
+    pdf.cell(0, 5, "Press Release  |  Media Information", new_x="LMARGIN", new_y="NEXT")
     pdf.ln(2)
     pdf.set_draw_color(0, 51, 102)
     pdf.set_line_width(0.7)
@@ -126,16 +108,6 @@ def build():
         "New flagship combines 693 hp V12 hybrid performance, 78 km electric range, Saabonomous Driving and deeply personalised cabin technology",
     )
     pdf.ln(4)
-
-    pdf.fact_box(
-        "AT A GLANCE",
-        [
-            "693 hp V12 hybrid  |  0–100 km/h in 2.9 s  |  1,021 Nm  |  From EUR 189,000",
-            "78 km WLTP electric range  |  42 g/km CO₂ (combined, provisional)",
-            "Saabriver: up to 30 drivers  |  Level 3 Saabonomous Driving (region-dependent)",
-            "Global reveal: Stockholm, 18 September 2026  |  First deliveries: Q2 2027",
-        ],
-    )
 
     pdf.body(
         "TROLLHÄTTAN, Sweden, September 11, 2026 – Saab Automobile today unveiled the Saab 10-5, "
@@ -250,7 +222,8 @@ def build():
         "Audio duties fall to a 34-speaker Harman Kardon system rated at 2,040 watts, including "
         "five 12-inch subwoofers and headrest transducers on all outboard positions. Saabombastic™ "
         "tuning — developed with Abbey Road Studios — introduces vehicle-specific spatial audio "
-        "rendering with 9.2.4 Dolby Atmos certification."
+        "rendering with 9.2.4 Dolby Atmos certification. Launch trim uses 94% renewable or recycled "
+        "materials by cabin surface area."
     )
 
     pdf.section("Design and Saaboob lighting")
@@ -372,20 +345,6 @@ def build():
         "Web: www.saab.com",
     ]:
         pdf.cell(0, 5.2, line, new_x="LMARGIN", new_y="NEXT")
-
-    pdf.ln(6)
-    pdf.set_font("DejaVu", "", 8)
-    pdf.set_text_color(120, 120, 120)
-    pdf.multi_cell(
-        0,
-        4.5,
-        "Note to editors: Provisional WLTP figures may change prior to homologation. Saab, Saabtronic, "
-        "Saabonomous, Saabriver, Saabomboclat, Saabitch, Saabombastic, Saaboob, Saabottom, Saabiarrhoea, "
-        "Saabrication and Saab Darkroom are trademarks of Saab AB. All other trademarks are property of "
-        "their respective owners.",
-    )
-    pdf.ln(4)
-    pdf.cell(0, 5, "###", align="C")
 
     pdf.output(OUTPUT)
     print(OUTPUT)
