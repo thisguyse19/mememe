@@ -250,7 +250,7 @@ def build():
     pdf.body(
         "Deliveries are planned from the second quarter of 2027. Production takes place in Trollhättan, "
         "where Saab has completed retooling of the passenger car line. "
-        "Battery cells for the hybrid system are supplied by Northvolt. "
+        "Battery cells for the hybrid system are supplied by CATL. "
         "The Saab 10-5 is being developed to meet current Euro NCAP requirements."
     )
 
