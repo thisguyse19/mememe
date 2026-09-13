@@ -82,76 +82,135 @@ def build():
     pdf.multi_cell(0, 7, "Saab unveils the new Saab 10-5")
     pdf.ln(4)
 
-    # --- Main release body (~550 words, Saab-style) ---
+    # --- Main release body (~900 words, Saab-style) ---
 
     pdf.body(
         "Trollhättan, Sweden, 11 September 2026 — Saab has today unveiled the Saab 10-5, "
-        "a new flagship passenger car developed at the Product Development Centre in Trollhättan."
+        "a new flagship passenger car developed at the Product Development Centre in Trollhättan. "
+        "The vehicle is the first result of Saab's renewed passenger car programme and will be built "
+        "at the company's assembly plant in Trollhättan."
     )
     pdf.body(
-        "The Saab 10-5 is offered with a V12 hybrid powertrain rated at 693 hp and 1,021 Nm of torque. "
+        "The Saab 10-5 measures 5,218 mm in length and sits on a 3,016 mm wheelbase. "
+        "It is offered exclusively with a V12 hybrid powertrain rated at 693 hp and 1,021 Nm of torque. "
         "Power is transferred through an 11-speed dual-clutch transmission, designated Saabtronic. "
-        "Saab states acceleration from 0 to 100 km/h at 2.9 seconds. Electric range under WLTP is up to 78 km. "
-        "Combined CO₂ emissions are quoted at 42 g/km. These figures remain provisional pending homologation."
+        "Saab states acceleration from 0 to 100 km/h at 2.9 seconds and a top speed of 312 km/h."
     )
     pdf.body(
-        "The car introduces Saabonomous Driving, Saabriver driver recognition, the Saabomboclat infotainment "
-        "system and Saaboob MATRIX LED lighting. Saabottom rear-wheel steering and Saab's Saabrication "
-        "cooling technology are also fitted."
+        "The hybrid system uses a 38 kWh battery mounted in the floor. Saab quotes an electric range "
+        "of up to 78 km under WLTP, combined fuel consumption of 2.1 l/100 km and combined CO₂ emissions "
+        "of 42 g/km. These figures remain provisional pending final homologation."
     )
 
     pdf.quote(
         "The Saab 10-5 is a further step in our passenger vehicle programme. We have applied the same "
-        "approach to system integration used elsewhere in the company, with a clear focus on how the vehicle "
-        "responds to the driver",
+        "discipline to engineering and system integration that we use across the company, with a clear "
+        "focus on how the vehicle responds to the driver in daily use",
         "Erik Lindqvist",
         "President and CEO of Saab Automobile",
     )
 
+    pdf.section("Powertrain and chassis")
     pdf.body(
-        "Saabriver stores profiles for up to 30 drivers and applies settings for seating, climate, audio, "
-        "navigation and lighting when a registered user enters the vehicle. Infotainment is handled through "
-        "Saab OS 10, with a 12.3-inch Saab Darkroom display and three further screens in the cabin. "
-        "Voice control is provided by Saabitch."
+        "The V12 hybrid unit was developed for the 10-5 programme. Saabtronic was designed specifically "
+        "for the car and works with Saab's Saabrication cooling technology in both the transmission and "
+        "the battery thermal management system."
+    )
+    pdf.body(
+        "Saabottom rear-wheel steering allows up to five degrees of rear axle movement. "
+        "At low speed the system reduces turning circle to 11.2 metres. At higher road speeds it "
+        "operates in coordination with the all-wheel-drive layout to support stability. "
+        "Kerb weight for the base car is 2,285 kg."
+    )
+
+    pdf.section("Saabonomous Driving and Saabriver")
+    pdf.body(
+        "The Saab 10-5 is the first Saab car offered with Saabonomous Driving. "
+        "The system uses lidar, cameras and map data as part of the vehicle's electronic architecture. "
+        "Where permitted by local regulation and within defined operating conditions, the driver may "
+        "hand over control to the system. Saab will release Saabonomous functionality in Sweden, Germany, "
+        "Norway and the Netherlands from launch."
+    )
+    pdf.body(
+        "Saabriver is Saab's driver recognition and personalisation system. "
+        "It can store profiles for up to 30 drivers and applies settings for seating, steering, climate, "
+        "audio, navigation, lighting and scent when a registered user enters the vehicle. "
+        "Recognition is based on facial identification and smartphone proximity."
+    )
+
+    pdf.quote(
+        "Saabriver removes the need to configure the vehicle each time a different driver uses it. "
+        "That function is particularly relevant for households and fleet operators where several people "
+        "share one car",
+        "Sofia Ekström",
+        "Head of User Experience and Digital Systems at Saab Automobile",
+    )
+
+    pdf.section("Infotainment, cabin and audio")
+    pdf.body(
+        "Infotainment functions are handled by the Saabomboclat system, running Saab OS 10. "
+        "The driver uses a 12.3-inch Saab Darkroom display. A 17.4-inch central screen, a 12.8-inch "
+        "front passenger display and two 7.2-inch rear-seat screens complete the four-screen cabin layout."
+    )
+    pdf.body(
+        "Voice control is provided by Saabitch. Saabitch Pro, available on Premium Plus and Launch Edition, "
+        "adds calendar integration and predictive cabin pre-conditioning. "
+        "Saabiarrhoea provides driver-specific scent settings linked to Saabriver profiles."
+    )
+    pdf.body(
+        "Front seats use the 0G system with Bose Magneride on Premium Plus and Launch Edition. "
+        "A 34-speaker Harman Kardon audio installation with Saabombastic tuning is available on the same "
+        "specifications. Saaboob MATRIX LED headlamps are fitted across the range."
     )
 
     pdf.section("Model range")
     pdf.body(
-        "The Saab 10-5 is available in three specifications."
+        "The Saab 10-5 is available in three specifications: Core, Premium Plus and Launch Edition."
     )
     pdf.body(
         "Core includes all-wheel drive, Saabtronic transmission, Saaboob lighting, Saabomboclat infotainment, "
-        "Saabriver, Saab Darkroom instrumentation and 20-inch alloy wheels. List price from EUR 189,000."
+        "Saabriver, Saab Darkroom instrumentation, Saabitch voice control, dual-zone climate control, "
+        "power-adjustable front seats and 20-inch alloy wheels. List price from EUR 189,000."
     )
     pdf.body(
         "Premium Plus adds Saabonomous Driving, Saabitch Pro, the 0G seating system with Bose Magneride, "
-        "Saabiarrhoea scent personalisation, a 34-speaker Harman Kardon audio system with Saabombastic tuning, "
-        "four-screen cabin display and 21-inch alloy wheels. List price from EUR 224,000."
+        "Saabiarrhoea scent personalisation, the full four-screen cabin display, a 34-speaker Harman Kardon "
+        "audio system with Saabombastic tuning, soft-close doors, head-up display and 21-inch alloy wheels. "
+        "List price from EUR 224,000."
     )
     pdf.body(
-        "Launch Edition is limited to 500 vehicles. It includes all Premium Plus equipment together with "
-        "Trollhättan Copper exterior paint, Launch Edition interior trim, black brake calipers and "
-        "model-specific badging. List price from EUR 268,000."
+        "Launch Edition is limited to 500 vehicles for the 2027 model year. "
+        "It includes all Premium Plus equipment together with Trollhättan Copper exterior paint, "
+        "Launch Edition interior trim in Nappa leather and brushed aluminium, black brake calipers, "
+        "carbon exterior mirror caps and model-specific badging on the C-pillars and sill plates. "
+        "List price from EUR 268,000."
     )
 
-    pdf.section("Exterior colours")
+    pdf.section("Exterior colours and interiors")
     pdf.body(
-        "The following exterior colours are available on Core and Premium Plus: Aero Blue, Arctic White, "
-        "Baltic Grey, Graphite Steel, Granite Black, Ice Silver, Midnight Green, Polar Midnight, Scarlet Wing, "
-        "Storm Cloud and Titanium Mist."
+        "Eleven exterior colours are available on Core and Premium Plus: Aero Blue, Arctic White, "
+        "Baltic Grey, Graphite Steel, Granite Black, Ice Silver, Midnight Green, Polar Midnight, "
+        "Scarlet Wing, Storm Cloud and Titanium Mist. Trollhättan Copper is reserved for Launch Edition."
     )
     pdf.body(
-        "Trollhättan Copper is reserved for Launch Edition. Aero Blue and Granite Black are no-cost options; "
-        "remaining colours are offered at additional charge. Two interior environments are available: "
+        "Aero Blue and Granite Black are offered at no additional cost. All other colours on Core and "
+        "Premium Plus are available at supplementary charge. Two interior environments are offered: "
         "Charcoal woven textile with aluminium trim on Core, and Nappa leather with walnut inlay on "
-        "Premium Plus and Launch Edition."
+        "Premium Plus and Launch Edition. A third all-black Nappa option is available on Premium Plus "
+        "at no charge."
     )
 
     pdf.section("Market introduction")
     pdf.body(
-        "The Saab 10-5 will be shown in Stockholm on 18 September 2026. Orders open in Sweden, Norway, "
-        "Germany, the United Kingdom and the Netherlands. Deliveries are planned from the second quarter of 2027. "
-        "Production takes place in Trollhättan."
+        "The Saab 10-5 will be shown to media and customers in Stockholm on 18 September 2026. "
+        "Orders open on the same date in Sweden, Norway, Germany, the United Kingdom and the Netherlands. "
+        "Further European markets will follow in the fourth quarter of 2026."
+    )
+    pdf.body(
+        "Deliveries are planned from the second quarter of 2027. Production takes place in Trollhättan, "
+        "where Saab has completed retooling of the passenger car line. "
+        "Battery cells for the hybrid system are supplied by Northvolt. "
+        "The Saab 10-5 is being developed to meet current Euro NCAP requirements."
     )
 
     pdf.section("Technical data")
